@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import json
+import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Tuple
 from sqlalchemy import select, text
@@ -51,6 +52,45 @@ class AuditService:
     @classmethod
     async def append_event(
         cls,
+        session: Optional[AsyncSession] = None,
+        trace_id: str = "",
+        event_type: str = "",
+        actor_type: str = "",
+        actor_id: str = "",
+        payload: Optional[Dict[str, Any]] = None,
+    ) -> AuditLog:
+        """
+        Appends an immutable audit event to the ledger using SHA-256 cryptographic chaining.
+        Guarantees strictly serialized monotonic sequence ordering and fork prevention under concurrency.
+        """
+        if payload is None:
+            payload = {}
+
+        async with cls._get_loop_lock():
+            if session is None:
+                from app.db.session import AsyncSessionLocal
+                async with AsyncSessionLocal() as audit_session:
+                    return await cls._append_to_session(
+                        session=audit_session,
+                        trace_id=trace_id,
+                        event_type=event_type,
+                        actor_type=actor_type,
+                        actor_id=actor_id,
+                        payload=payload,
+                    )
+            else:
+                return await cls._append_to_session(
+                    session=session,
+                    trace_id=trace_id,
+                    event_type=event_type,
+                    actor_type=actor_type,
+                    actor_id=actor_id,
+                    payload=payload,
+                )
+
+    @classmethod
+    async def _append_to_session(
+        cls,
         session: AsyncSession,
         trace_id: str,
         event_type: str,
@@ -58,51 +98,48 @@ class AuditService:
         actor_id: str,
         payload: Dict[str, Any],
     ) -> AuditLog:
-        """
-        Appends an immutable audit event to the ledger using SHA-256 cryptographic chaining.
-        Guarantees strictly serialized monotonic sequence ordering and fork prevention under concurrency.
-        """
-        async with cls._get_loop_lock():
-            # 1. Database-level serialization safeguard:
-            # On PostgreSQL, acquire a transaction-scoped advisory lock to prevent cross-worker forks.
-            try:
-                bind = session.bind
-                if bind and bind.dialect.name == "postgresql":
-                    await session.execute(text(f"SELECT pg_advisory_xact_lock({cls.PG_AUDIT_ADVISORY_LOCK_ID})"))
-            except Exception:
-                pass  # Fall back gracefully if dialect does not support advisory lock
+        # 1. Database-level serialization safeguard:
+        # On PostgreSQL, acquire a transaction-scoped advisory lock to prevent cross-worker forks.
+        try:
+            bind = session.bind
+            if bind and bind.dialect.name == "postgresql":
+                await session.execute(text(f"SELECT pg_advisory_xact_lock({cls.PG_AUDIT_ADVISORY_LOCK_ID})"))
+        except Exception:
+            pass  # Fall back gracefully if dialect does not support advisory lock
 
-            # 2. Fetch the authoritative latest record ordered by monotonic sequence_id
-            query = select(AuditLog).order_by(AuditLog.sequence_id.desc()).limit(1)
-            result = await session.execute(query)
-            latest_record = result.scalar_one_or_none()
+        # 2. Fetch the authoritative latest record ordered by monotonic sequence_id
+        query = select(AuditLog).order_by(AuditLog.sequence_id.desc()).limit(1)
+        result = await session.execute(query)
+        latest_record = result.scalar_one_or_none()
 
-            if latest_record and latest_record.sequence_id is not None:
-                next_seq = latest_record.sequence_id + 1
-                prev_hash = latest_record.current_hash
-            else:
-                next_seq = 1
-                prev_hash = "0" * 64
+        if latest_record and latest_record.sequence_id is not None:
+            next_seq = latest_record.sequence_id + 1
+            prev_hash = latest_record.current_hash
+        else:
+            next_seq = 1
+            prev_hash = "0" * 64
 
-            timestamp = datetime.now(timezone.utc).isoformat()
-            payload_str = cls.canonical_json(payload)
-            current_hash = cls.calculate_hash(prev_hash, timestamp, event_type, actor_id, payload_str)
+        timestamp = datetime.now(timezone.utc).isoformat()
+        payload_str = cls.canonical_json(payload)
+        current_hash = cls.calculate_hash(prev_hash, timestamp, event_type, actor_id, payload_str)
 
-            audit_entry = AuditLog(
-                sequence_id=next_seq,
-                trace_id=trace_id,
-                event_type=event_type,
-                actor_type=actor_type,
-                actor_id=actor_id,
-                event_payload=payload_str,
-                prev_hash=prev_hash,
-                current_hash=current_hash,
-                created_at=timestamp,
-            )
-            session.add(audit_entry)
-            await session.commit()
-            await session.refresh(audit_entry)
-            return audit_entry
+        audit_entry = AuditLog(
+            id=str(uuid.uuid4()),
+            sequence_id=next_seq,
+            trace_id=trace_id,
+            event_type=event_type,
+            actor_type=actor_type,
+            actor_id=actor_id,
+            event_payload=payload_str,
+            prev_hash=prev_hash,
+            current_hash=current_hash,
+            created_at=timestamp,
+        )
+        session.add(audit_entry)
+        await session.commit()
+        # Note: Do NOT call session.refresh(audit_entry) here to avoid implicitly re-opening
+        # a new transaction on the connection in asyncpg.
+        return audit_entry
 
     @classmethod
     async def verify_chain(cls, session: AsyncSession) -> Tuple[bool, Optional[str]]:

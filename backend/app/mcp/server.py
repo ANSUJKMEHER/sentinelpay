@@ -576,16 +576,7 @@ class FinancialMCPServer:
             # P1 Hardening: Explicitly rollback any failed/dirty transaction state
             await session.rollback()
             try:
-                await AuditService.append_event(
-                    session=session,
-                    trace_id=caller.trace_id,
-                    event_type=f"MCP_TOOL_ERROR:{tool_name}",
-                    actor_type="MCP_SERVER",
-                    actor_id="mcp_gateway",
-                    payload={"tool_name": tool_name, "error": err.message, "code": err.code},
-                )
-            except Exception:
-                # Dedicated clean session fallback to ensure audit event is never lost
+                # Dedicated clean session to ensure error audit event is recorded without touching rolled-back session
                 async with AsyncSessionLocal() as audit_session:
                     await AuditService.append_event(
                         session=audit_session,
@@ -595,21 +586,14 @@ class FinancialMCPServer:
                         actor_id="mcp_gateway",
                         payload={"tool_name": tool_name, "error": err.message, "code": err.code},
                     )
+            except Exception:
+                pass
             return {"content": [{"type": "text", "text": json.dumps({"error": err.message, "code": err.code})}], "isError": True}
 
         except Exception as exc:
             # P1 Hardening: Explicitly rollback any failed/dirty transaction state
             await session.rollback()
             try:
-                await AuditService.append_event(
-                    session=session,
-                    trace_id=caller.trace_id,
-                    event_type=f"MCP_TOOL_EXCEPTION:{tool_name}",
-                    actor_type="MCP_SERVER",
-                    actor_id="mcp_gateway",
-                    payload={"tool_name": tool_name, "exception": str(exc)},
-                )
-            except Exception:
                 # Dedicated clean session fallback
                 async with AsyncSessionLocal() as audit_session:
                     await AuditService.append_event(
@@ -620,4 +604,6 @@ class FinancialMCPServer:
                         actor_id="mcp_gateway",
                         payload={"tool_name": tool_name, "exception": str(exc)},
                     )
+            except Exception:
+                pass
             return {"content": [{"type": "text", "text": json.dumps({"error": f"Internal execution failure: {str(exc)}", "code": -32603})}], "isError": True}
