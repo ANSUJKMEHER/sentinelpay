@@ -18,7 +18,7 @@ from app.policy.engine import DeterministicPolicyEngine
 BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
-def run_python_process(code: str, env: dict = None) -> subprocess.CompletedProcess:
+def run_python_process(code: str, env: dict = None, timeout: float = 30.0) -> subprocess.CompletedProcess:
     process_env = os.environ.copy()
     process_env["PYTHONPATH"] = BACKEND_DIR
     process_env["LLM_PROVIDER"] = "mock"
@@ -30,6 +30,7 @@ def run_python_process(code: str, env: dict = None) -> subprocess.CompletedProce
         capture_output=True,
         text=True,
         env=process_env,
+        timeout=timeout,
     )
 
 

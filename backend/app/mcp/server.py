@@ -376,11 +376,31 @@ class FinancialMCPServer:
         tx.refunded_amount = new_refunded
         tx.status = "REFUNDED" if new_refunded >= tx.amount else "PARTIALLY_REFUNDED"
 
-        # 6. Atomically consume policy token and record execution
+        # 6. Ensure parent dispute record exists for foreign key constraint compliance
         execution_id = generate_uuid()
         now_iso = datetime.now(timezone.utc).isoformat()
         mcp_ref = f"mcp_ref_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}_{execution_id[:8]}"
 
+        disp_query = select(Dispute).where(Dispute.id == inp.dispute_id)
+        disp = (await session.execute(disp_query)).scalar_one_or_none()
+        if not disp:
+            disp = Dispute(
+                id=inp.dispute_id,
+                transaction_id=inp.transaction_id,
+                merchant_id=tx.merchant_id,
+                dispute_type="unauthorized_transaction",
+                disputed_amount=inp.amount,
+                status="RESOLVED_REFUNDED",
+                current_stage="COMPLETED",
+                final_resolution=f"Refund of ₹{inp.amount:.2f} executed via MCP Gateway ({mcp_ref})",
+            )
+            session.add(disp)
+        else:
+            disp.status = "RESOLVED_REFUNDED"
+            disp.current_stage = "COMPLETED"
+            disp.final_resolution = f"Refund of ₹{inp.amount:.2f} executed via MCP Gateway ({mcp_ref})"
+
+        # 7. Atomically consume policy token and record execution
         consumed_entry = ConsumedPolicyToken(
             token_hash=token_hash,
             dispute_id=inp.dispute_id,
@@ -407,14 +427,6 @@ class FinancialMCPServer:
             signed_token_hash=token_hash,
         )
         session.add(ledger_entry)
-
-        # 7. Update dispute if exists
-        disp_query = select(Dispute).where(Dispute.id == inp.dispute_id)
-        disp = (await session.execute(disp_query)).scalar_one_or_none()
-        if disp:
-            disp.status = "RESOLVED_REFUNDED"
-            disp.current_stage = "COMPLETED"
-            disp.final_resolution = f"Refund of ₹{inp.amount:.2f} executed via MCP Gateway ({mcp_ref})"
 
         try:
             await session.commit()

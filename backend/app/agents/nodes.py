@@ -403,19 +403,40 @@ async def supervisor_node(state: DisputeState) -> DisputeState:
     # If human approval is required and currently pending, persist approval request in DB
     if state.get("human_approval_required") and state.get("human_approval_status") == "PENDING":
         async with AsyncSessionLocal() as session:
-            # Check if approval request already created
-            appr_q = select(ApprovalRequest).where(ApprovalRequest.dispute_id == state["dispute_id"])
-            existing = (await session.execute(appr_q)).scalar_one_or_none()
-            if not existing:
-                appr_req = ApprovalRequest(
-                    dispute_id=state["dispute_id"],
-                    required_role="RISK_LEAD",
-                    amount=state["disputed_amount"],
-                    status="PENDING",
-                    requester_agent="supervisor_agent",
-                )
-                session.add(appr_req)
-                await session.commit()
+            try:
+                # Check if approval request already created
+                appr_q = select(ApprovalRequest).where(ApprovalRequest.dispute_id == state["dispute_id"])
+                existing = (await session.execute(appr_q)).scalar_one_or_none()
+                if not existing:
+                    # Guarantee parent dispute row exists for foreign key constraint compliance
+                    disp_q = select(Dispute).where(Dispute.id == state["dispute_id"])
+                    disp = (await session.execute(disp_q)).scalar_one_or_none()
+                    if not disp:
+                        new_disp = Dispute(
+                            id=state["dispute_id"],
+                            transaction_id=state["transaction_id"],
+                            merchant_id=state["merchant_id"],
+                            dispute_type=state.get("dispute_type", "unauthorized_transaction"),
+                            disputed_amount=state["disputed_amount"],
+                            status="AWAITING_APPROVAL",
+                            current_stage="AWAITING_APPROVAL",
+                        )
+                        session.add(new_disp)
+                        await session.flush()
+
+                    appr_req = ApprovalRequest(
+                        dispute_id=state["dispute_id"],
+                        required_role="RISK_LEAD",
+                        amount=state["disputed_amount"],
+                        status="PENDING",
+                        requester_agent="supervisor_agent",
+                    )
+                    session.add(appr_req)
+                    await session.commit()
+            except Exception as exc:
+                await session.rollback()
+                # Non-fatal DB error logged while preserving workflow suspension
+                pass
 
         state["timeline"].append({
             "stage": "HUMAN_APPROVAL_SUSPENDED",

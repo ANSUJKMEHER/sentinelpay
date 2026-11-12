@@ -10,6 +10,7 @@ jobs:
   postgres-integration-and-regression:
     name: Live PostgreSQL 16 Integration & Backend Suite
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       postgres:
@@ -81,7 +82,7 @@ jobs:
           ENVIRONMENT: staging
           LLM_ALLOW_MOCK_FALLBACK: "true"
         run: |
-          pytest -v
+          pytest -v -s --timeout=60
 
       - name: Run AI Benchmark Evaluation Dataset
         working-directory: ./backend
@@ -91,6 +92,7 @@ jobs:
   docker-deployment-verification:
     name: Docker Compose Full Stack Staging Deployment
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: postgres-integration-and-regression
 
     steps:
