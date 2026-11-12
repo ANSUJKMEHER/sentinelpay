@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.checkpoint import format_thread_id
 from app.agents.graph import dispute_orchestrator
 from app.agents.state import create_initial_state
 from app.api.deps import get_current_actor
@@ -250,7 +251,7 @@ async def trigger_agent_investigation(
         idempotency_key=idempotency_key,
     )
 
-    config = {"configurable": {"thread_id": disp.id}}
+    config = {"configurable": {"thread_id": format_thread_id(disp.merchant_id, disp.id)}}
     final_state = await dispute_orchestrator.ainvoke(state, config=config)
 
     # Sync back to DB

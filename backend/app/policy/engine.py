@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import List, Optional
 from app.core.config import settings
@@ -120,6 +120,7 @@ class DeterministicPolicyEngine:
         approver_id: str,
         approver_role: str,
         action_type: str = "REFUND",
+        expires_delta: Optional[timedelta] = None,
     ) -> PolicyEvaluationSummary:
         """
         Issues a signed PolicyToken when an authorized human (RISK_LEAD or FIN_OPS_ADMIN)
@@ -144,6 +145,7 @@ class DeterministicPolicyEngine:
             merchant_id=merchant_id,
             approved_by=approver_id,
             role=approver_role,
+            expires_delta=expires_delta,
         )
 
         return PolicyEvaluationSummary(

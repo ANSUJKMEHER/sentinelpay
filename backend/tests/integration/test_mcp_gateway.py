@@ -145,9 +145,57 @@ async def test_mcp_authorized_refund_and_idempotency_enforcement(agent_caller):
         )
         assert replay_res["isError"] is True
         replay_data = json.loads(replay_res["content"][0]["text"])
-        assert "Idempotency violation" in replay_data["error"]
+        assert "Replay Violation" in replay_data["error"] or "Idempotency violation" in replay_data["error"]
 
         # 4. Verify cryptographic audit chain integrity
         is_chain_valid, err = await AuditService.verify_chain(session)
         assert is_chain_valid is True
         assert err is None
+
+
+@pytest.mark.asyncio
+async def test_mcp_session_rollback_on_execution_failure(agent_caller):
+    """
+    P1 Hardening Test:
+    Verifies that when an MCP execution fails:
+    1. The database session is explicitly rolled back.
+    2. No partial or dirty state remains on the transaction.
+    3. The error audit event is recorded cleanly without PendingRollbackError.
+    4. Subsequent database operations on the session succeed cleanly.
+    """
+    import uuid
+    from app.db.models import Transaction
+    from sqlalchemy import select
+
+    async with AsyncSessionLocal() as session:
+        # Check current refunded_amount of txn_1001
+        tx = (await session.execute(select(Transaction).where(Transaction.id == "txn_1001"))).scalar_one()
+        orig_refunded = tx.refunded_amount
+
+        # Attempt an unauthorized refund with an invalid token
+        res = await FinancialMCPServer.call_tool(
+            session=session,
+            tool_name="create_refund_request",
+            arguments={
+                "dispute_id": f"disp_fail_{uuid.uuid4().hex[:8]}",
+                "transaction_id": "txn_1001",
+                "amount": 999.0,
+                "idempotency_key": f"idemp_fail_{uuid.uuid4().hex[:8]}",
+                "policy_token": "tampered_unauthorized_token",
+            },
+            caller=agent_caller,
+        )
+        assert res["isError"] is True
+
+        # Verify transaction state was NOT modified (no partial commit)
+        tx_check = (await session.execute(select(Transaction).where(Transaction.id == "txn_1001"))).scalar_one()
+        assert tx_check.refunded_amount == orig_refunded
+
+        # Verify session is clean and can perform subsequent queries without PendingRollbackError
+        fresh_tx = (await session.execute(select(Transaction).where(Transaction.id == "txn_1002"))).scalar_one()
+        assert fresh_tx.id == "txn_1002"
+
+        # Verify audit chain integrity remains intact
+        is_valid, err = await AuditService.verify_chain(session)
+        assert is_valid is True, f"Audit chain error after rollback: {err}"
+

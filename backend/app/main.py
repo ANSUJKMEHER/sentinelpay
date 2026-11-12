@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.agents.checkpoint import close_global_checkpointer, init_global_checkpointer
 from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.logging import logger, setup_logging
@@ -13,11 +14,14 @@ from app.db.seed_data import seed_database
 async def lifespan(app: FastAPI):
     setup_logging()
     logger.info("Initializing SentinelPay enterprise backend services...")
+    # Initialize persistent LangGraph checkpointer
+    await init_global_checkpointer()
     # Initialize DB and seed synthetic data
     await seed_database()
     logger.info("SentinelPay platform initialized and ready for operations.")
     yield
     logger.info("Shutting down SentinelPay services...")
+    await close_global_checkpointer()
 
 
 app = FastAPI(

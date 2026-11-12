@@ -72,6 +72,16 @@ def evaluate_dispute_window(ctx: PolicyContext, max_days: int = settings.POLICY_
 
     delta = (disp_time - tx_time).total_seconds() / 86400.0
 
+    if delta < 0:
+        return RuleEvaluationResult(
+            rule_code="RULE_DISPUTE_WINDOW",
+            rule_name="Regulatory Dispute Window Check",
+            passed=False,
+            verdict_impact=PolicyVerdict.POLICY_REJECTED,
+            reason="Transaction timestamp is in the future relative to dispute timestamp",
+            details={"days_elapsed": round(delta, 1), "max_allowed_days": max_days},
+        )
+
     if delta > max_days:
         return RuleEvaluationResult(
             rule_code="RULE_DISPUTE_WINDOW",

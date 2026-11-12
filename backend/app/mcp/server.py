@@ -3,14 +3,17 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import verify_policy_execution_token
 from app.db.audit_service import AuditService
 from app.db.base import generate_uuid
+from app.db.session import AsyncSessionLocal
 from app.db.models import (
     Account,
     AuditLog,
+    ConsumedPolicyToken,
     Dispute,
     Evidence,
     ExecutionLedger,
@@ -329,7 +332,17 @@ class FinancialMCPServer:
         except Exception as e:
             raise MCPExecutionError(f"Policy Token Verification Failed: {str(e)}", code=-32001)
 
-        # 2. Strict semantic claim validation
+        # 2. Replay Protection: Verify token has not already been consumed (Single-Use Token Violation)
+        token_hash = hashlib.sha256(inp.policy_token.encode("utf-8")).hexdigest()
+        consumed_query = select(ConsumedPolicyToken).where(ConsumedPolicyToken.token_hash == token_hash)
+        existing_consumed = (await session.execute(consumed_query)).scalar_one_or_none()
+        if existing_consumed:
+            raise MCPExecutionError(
+                f"Replay Violation: Policy execution token has already been consumed (single-use token violation). Token hash: {token_hash[:16]}...",
+                code=-32006,
+            )
+
+        # 3. Strict semantic claim validation
         if token_payload.get("sub") != inp.dispute_id:
             raise MCPExecutionError("Token dispute_id mismatch", code=-32002)
         if token_payload.get("transaction_id") != inp.transaction_id:
@@ -338,18 +351,23 @@ class FinancialMCPServer:
             raise MCPExecutionError(f"Token amount mismatch: token specifies {token_payload.get('amount')}, requested {inp.amount}", code=-32002)
         if token_payload.get("idempotency_key") != inp.idempotency_key:
             raise MCPExecutionError("Token idempotency_key mismatch", code=-32002)
+        if token_payload.get("action_type") not in ("REFUND", "PROVISIONAL_CREDIT", "REVERSAL"):
+            raise MCPExecutionError("Token action_type mismatch: invalid financial action", code=-32002)
 
-        # 3. Check duplicate execution in ledger
+        # 4. Check duplicate execution in ledger
         ledger_query = select(ExecutionLedger).where(ExecutionLedger.idempotency_key == inp.idempotency_key)
         existing_exec = (await session.execute(ledger_query)).scalar_one_or_none()
         if existing_exec:
             raise MCPExecutionError(f"Idempotency violation: execution already recorded for key '{inp.idempotency_key}'", code=-32005)
 
-        # 4. Fetch and update transaction
+        # 5. Fetch and update transaction
         tx_query = select(Transaction).where(Transaction.id == inp.transaction_id).with_for_update()
         tx = (await session.execute(tx_query)).scalar_one_or_none()
         if not tx:
             raise MCPExecutionError(f"Transaction '{inp.transaction_id}' not found", code=-32004)
+
+        if token_payload.get("merchant_id") and token_payload.get("merchant_id") != tx.merchant_id:
+            raise MCPExecutionError("Token merchant_id mismatch: token merchant does not match transaction", code=-32002)
 
         new_refunded = round(tx.refunded_amount + inp.amount, 2)
         if new_refunded > tx.amount:
@@ -358,10 +376,24 @@ class FinancialMCPServer:
         tx.refunded_amount = new_refunded
         tx.status = "REFUNDED" if new_refunded >= tx.amount else "PARTIALLY_REFUNDED"
 
-        # 5. Record execution in ExecutionLedger
-        token_hash = hashlib.sha256(inp.policy_token.encode("utf-8")).hexdigest()
+        # 6. Atomically consume policy token and record execution
         execution_id = generate_uuid()
+        now_iso = datetime.now(timezone.utc).isoformat()
         mcp_ref = f"mcp_ref_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}_{execution_id[:8]}"
+
+        consumed_entry = ConsumedPolicyToken(
+            token_hash=token_hash,
+            dispute_id=inp.dispute_id,
+            transaction_id=inp.transaction_id,
+            merchant_id=tx.merchant_id,
+            amount=inp.amount,
+            action_type="REFUND",
+            policy_version=int(token_payload.get("policy_version", 1)),
+            idempotency_key=inp.idempotency_key,
+            consumed_by=caller.actor_id,
+            consumed_at=now_iso,
+        )
+        session.add(consumed_entry)
 
         ledger_entry = ExecutionLedger(
             id=execution_id,
@@ -376,7 +408,7 @@ class FinancialMCPServer:
         )
         session.add(ledger_entry)
 
-        # 6. Update dispute if exists
+        # 7. Update dispute if exists
         disp_query = select(Dispute).where(Dispute.id == inp.dispute_id)
         disp = (await session.execute(disp_query)).scalar_one_or_none()
         if disp:
@@ -384,7 +416,22 @@ class FinancialMCPServer:
             disp.current_stage = "COMPLETED"
             disp.final_resolution = f"Refund of ₹{inp.amount:.2f} executed via MCP Gateway ({mcp_ref})"
 
-        await session.commit()
+        try:
+            await session.commit()
+        except IntegrityError as ie:
+            await session.rollback()
+            err_str = str(ie)
+            if "consumed_policy_tokens" in err_str or "token_hash" in err_str:
+                raise MCPExecutionError(
+                    f"Replay Violation: Policy execution token has already been consumed (single-use token violation). Token hash: {token_hash[:16]}...",
+                    code=-32006,
+                )
+            elif "execution_ledger" in err_str or "idempotency_key" in err_str:
+                raise MCPExecutionError(
+                    f"Idempotency violation: execution already recorded for key '{inp.idempotency_key}'",
+                    code=-32005,
+                )
+            raise MCPExecutionError(f"Database integrity violation: {err_str}", code=-32005)
 
         return CreateRefundRequestOutput(
             success=True,
@@ -514,22 +561,51 @@ class FinancialMCPServer:
             return {"content": [{"type": "text", "text": json.dumps(output_dict)}], "isError": False}
 
         except MCPExecutionError as err:
-            await AuditService.append_event(
-                session=session,
-                trace_id=caller.trace_id,
-                event_type=f"MCP_TOOL_ERROR:{tool_name}",
-                actor_type="MCP_SERVER",
-                actor_id="mcp_gateway",
-                payload={"tool_name": tool_name, "error": err.message, "code": err.code},
-            )
+            # P1 Hardening: Explicitly rollback any failed/dirty transaction state
+            await session.rollback()
+            try:
+                await AuditService.append_event(
+                    session=session,
+                    trace_id=caller.trace_id,
+                    event_type=f"MCP_TOOL_ERROR:{tool_name}",
+                    actor_type="MCP_SERVER",
+                    actor_id="mcp_gateway",
+                    payload={"tool_name": tool_name, "error": err.message, "code": err.code},
+                )
+            except Exception:
+                # Dedicated clean session fallback to ensure audit event is never lost
+                async with AsyncSessionLocal() as audit_session:
+                    await AuditService.append_event(
+                        session=audit_session,
+                        trace_id=caller.trace_id,
+                        event_type=f"MCP_TOOL_ERROR:{tool_name}",
+                        actor_type="MCP_SERVER",
+                        actor_id="mcp_gateway",
+                        payload={"tool_name": tool_name, "error": err.message, "code": err.code},
+                    )
             return {"content": [{"type": "text", "text": json.dumps({"error": err.message, "code": err.code})}], "isError": True}
+
         except Exception as exc:
-            await AuditService.append_event(
-                session=session,
-                trace_id=caller.trace_id,
-                event_type=f"MCP_TOOL_EXCEPTION:{tool_name}",
-                actor_type="MCP_SERVER",
-                actor_id="mcp_gateway",
-                payload={"tool_name": tool_name, "exception": str(exc)},
-            )
+            # P1 Hardening: Explicitly rollback any failed/dirty transaction state
+            await session.rollback()
+            try:
+                await AuditService.append_event(
+                    session=session,
+                    trace_id=caller.trace_id,
+                    event_type=f"MCP_TOOL_EXCEPTION:{tool_name}",
+                    actor_type="MCP_SERVER",
+                    actor_id="mcp_gateway",
+                    payload={"tool_name": tool_name, "exception": str(exc)},
+                )
+            except Exception:
+                # Dedicated clean session fallback
+                async with AsyncSessionLocal() as audit_session:
+                    await AuditService.append_event(
+                        session=audit_session,
+                        trace_id=caller.trace_id,
+                        event_type=f"MCP_TOOL_EXCEPTION:{tool_name}",
+                        actor_type="MCP_SERVER",
+                        actor_id="mcp_gateway",
+                        payload={"tool_name": tool_name, "exception": str(exc)},
+                    )
             return {"content": [{"type": "text", "text": json.dumps({"error": f"Internal execution failure: {str(exc)}", "code": -32603})}], "isError": True}

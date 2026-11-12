@@ -138,3 +138,33 @@ def test_unauthorized_human_approval_rejected():
     assert summary.overall_verdict == PolicyVerdict.POLICY_REJECTED
     assert summary.execution_permitted is False
     assert summary.policy_token is None
+
+
+def test_dispute_future_transaction_timestamp_rejected(base_context):
+    now = datetime.now(timezone.utc)
+    base_context.transaction_timestamp = now + timedelta(days=2)  # Future timestamp
+
+    summary = DeterministicPolicyEngine.evaluate(base_context)
+    assert summary.overall_verdict == PolicyVerdict.POLICY_REJECTED
+    assert summary.execution_permitted is False
+    assert any("in the future" in r for r in summary.reasons)
+
+
+def test_dispute_naive_transaction_timestamp_handled_safely(base_context):
+    now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+    base_context.transaction_timestamp = now_naive - timedelta(days=10)
+    base_context.dispute_timestamp = now_naive
+
+    summary = DeterministicPolicyEngine.evaluate(base_context)
+    assert summary.overall_verdict == PolicyVerdict.AUTO_APPROVED
+    assert summary.execution_permitted is True
+
+
+def test_dispute_boundary_exact_within_60_days_passes(base_context):
+    now = datetime.now(timezone.utc)
+    base_context.transaction_timestamp = now - timedelta(days=59, hours=23)
+
+    summary = DeterministicPolicyEngine.evaluate(base_context)
+    assert summary.overall_verdict == PolicyVerdict.AUTO_APPROVED
+    assert summary.execution_permitted is True
+

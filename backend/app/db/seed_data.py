@@ -178,7 +178,8 @@ async def seed_database():
                 payment_method="UPI",
                 refunded_amount=0.0,
                 idempotency_key="tx_idemp_1005",
-                metadata_json=json.dumps({"order_ref": "QB-7714", "item": "Catering Order"}),
+                created_at=now - timedelta(days=75),
+                metadata_json=json.dumps({"order_ref": "QB-7714", "item": "Catering Order", "settled_at": (now - timedelta(days=75)).isoformat()}),
             ),
         ]
         session.add_all(transactions)

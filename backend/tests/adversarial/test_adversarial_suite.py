@@ -1,3 +1,4 @@
+import asyncio
 import json
 import uuid
 import pytest
@@ -126,7 +127,7 @@ async def test_adversarial_replay_attack_rejected():
         )
         assert first_call["isError"] is False
 
-        # 2. Replay call must be immediately rejected by ledger idempotency guard
+        # 2. Replay call must be immediately rejected by single-use token or ledger idempotency guard
         replay_call = await FinancialMCPServer.call_tool(
             session=session,
             tool_name="create_refund_request",
@@ -141,7 +142,117 @@ async def test_adversarial_replay_attack_rejected():
         )
         assert replay_call["isError"] is True
         error_data = json.loads(replay_call["content"][0]["text"])
-        assert "Idempotency violation" in error_data["error"]
+        assert "Replay Violation" in error_data["error"] or "Idempotency violation" in error_data["error"]
+
+
+@pytest.mark.asyncio
+async def test_adversarial_single_use_token_replay_with_different_idempotency_key():
+    """
+    P1 Hardening Attack Vector:
+    Adversary steals a legitimately executed PolicyToken and attempts to execute
+    a second refund using a brand-new idempotency key.
+    The ConsumedPolicyToken store MUST deterministically reject this attack.
+    """
+    async with AsyncSessionLocal() as session:
+        caller = MCPCallerIdentity(actor_id="agent_res", actor_role="AGENT", trace_id="trace_replay_single_use")
+        idemp_key_1 = f"idemp_orig_{uuid.uuid4().hex[:8]}"
+
+        token = create_policy_execution_token(
+            dispute_id="disp_single_use_test",
+            transaction_id="txn_1001",
+            amount=20.0,
+            action_type="REFUND",
+            idempotency_key=idemp_key_1,
+            merchant_id="mch_quickbite_02",
+            approved_by="POLICY_ENGINE",
+            role="POLICY_ENGINE",
+        )
+
+        # 1. First execution succeeds
+        first_call = await FinancialMCPServer.call_tool(
+            session=session,
+            tool_name="create_refund_request",
+            arguments={
+                "dispute_id": "disp_single_use_test",
+                "transaction_id": "txn_1001",
+                "amount": 20.0,
+                "idempotency_key": idemp_key_1,
+                "policy_token": token,
+            },
+            caller=caller,
+        )
+        assert first_call["isError"] is False
+
+        # 2. Replay attempt using a DIFFERENT idempotency key
+        # Even though the idempotency ledger has not seen idemp_key_2,
+        # ConsumedPolicyToken table MUST detect the token hash and reject.
+        idemp_key_2 = f"idemp_tampered_{uuid.uuid4().hex[:8]}"
+        replay_call = await FinancialMCPServer.call_tool(
+            session=session,
+            tool_name="create_refund_request",
+            arguments={
+                "dispute_id": "disp_single_use_test",
+                "transaction_id": "txn_1001",
+                "amount": 20.0,
+                "idempotency_key": idemp_key_2,
+                "policy_token": token,
+            },
+            caller=caller,
+        )
+        assert replay_call["isError"] is True
+        error_data = json.loads(replay_call["content"][0]["text"])
+        assert error_data.get("code") in (-32002, -32006)  # Token mismatch or single-use violation
+        assert "Replay Violation" in error_data["error"] or "Token idempotency_key mismatch" in error_data["error"]
+
+
+@pytest.mark.asyncio
+async def test_concurrent_token_replay_rejected():
+    """
+    P1 Hardening: Parallel race condition attack.
+    Multiple parallel tasks simultaneously attempt to spend the exact same policy token.
+    Exactly one task must succeed; all others must be rejected.
+    """
+    caller = MCPCallerIdentity(actor_id="agent_res", actor_role="AGENT", trace_id="trace_race_token")
+    idempotency_key = f"idemp_race_{uuid.uuid4().hex[:8]}"
+
+    token = create_policy_execution_token(
+        dispute_id="disp_race_test",
+        transaction_id="txn_1001",
+        amount=10.0,
+        action_type="REFUND",
+        idempotency_key=idempotency_key,
+        merchant_id="mch_quickbite_02",
+        approved_by="POLICY_ENGINE",
+        role="POLICY_ENGINE",
+    )
+
+    async def attempt_refund(attempt_id: int):
+        async with AsyncSessionLocal() as session:
+            return await FinancialMCPServer.call_tool(
+                session=session,
+                tool_name="create_refund_request",
+                arguments={
+                    "dispute_id": "disp_race_test",
+                    "transaction_id": "txn_1001",
+                    "amount": 10.0,
+                    "idempotency_key": idempotency_key,
+                    "policy_token": token,
+                },
+                caller=caller,
+            )
+
+    results = await asyncio.gather(*[attempt_refund(i) for i in range(5)])
+
+    successes = [r for r in results if not r["isError"]]
+    failures = [r for r in results if r["isError"]]
+
+    # Exactly one must succeed
+    assert len(successes) == 1, f"Expected 1 success, got {len(successes)}"
+    assert len(failures) == 4, f"Expected 4 failures, got {len(failures)}"
+    for f in failures:
+        err = json.loads(f["content"][0]["text"])
+        assert "Replay Violation" in err["error"] or "Idempotency violation" in err["error"]
+
 
 
 @pytest.mark.asyncio

@@ -156,3 +156,39 @@ async def test_human_approval_resume_workflow():
     assert state_resumed["current_stage"] == "COMPLETED"
     assert state_resumed["execution_result"]["success"] is True
     assert state_resumed["execution_result"]["refunded_amount"] == 15000.0
+
+
+@pytest.mark.asyncio
+async def test_agent_workflow_rejects_historical_transaction_beyond_60_days():
+    """
+    P0 Regression Test: Dispute filed on txn_1005 (seeded 75 days ago) must be rejected
+    by the deterministic policy engine under the 60-day regulatory dispute window rule.
+    """
+    checkpointer = MemorySaver()
+    graph = build_dispute_graph(checkpointer=checkpointer)
+
+    dispute_id = f"disp_expired_{uuid.uuid4().hex[:8]}"
+    idempotency_key = f"idemp_{uuid.uuid4().hex[:10]}"
+    config = {"configurable": {"thread_id": dispute_id}}
+
+    initial_state = create_initial_state(
+        dispute_id=dispute_id,
+        transaction_id="txn_1005",  # Created 75 days ago in seed data
+        merchant_id="mch_quickbite_02",
+        customer_id="CUST-IND-1001",
+        dispute_type="goods_not_received",
+        disputed_amount=500.0,
+        claim_reason="Filing dispute on old catering order from 75 days ago.",
+        idempotency_key=idempotency_key,
+    )
+
+    final_state = await graph.ainvoke(initial_state, config=config)
+
+    assert final_state["status"] == "RESOLVED_REJECTED"
+    assert final_state["current_stage"] == "COMPLETED"
+    assert final_state["execution_result"] == {}
+    # Verify the timeline contains policy evaluation rejection citing dispute window
+    policy_res = final_state.get("policy_engine_result", {})
+    assert policy_res.get("overall_verdict") == "POLICY_REJECTED"
+    assert any("RULE_DISPUTE_WINDOW" in r for r in policy_res.get("reasons", []))
+

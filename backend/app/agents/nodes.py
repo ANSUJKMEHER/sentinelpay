@@ -1,7 +1,7 @@
 import hashlib
 import json
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from sqlalchemy import select
 
 from app.core.config import settings
@@ -15,6 +15,7 @@ from app.policy.models import PolicyContext, PolicyVerdict
 from app.security.pii_scrubber import PIIScrubber
 from app.security.prompt_injection import PromptInjectionShield
 from app.agents.state import DisputeState
+from app.agents.llm_provider import get_llm_provider, LLMProviderUnavailableError
 
 
 async def intake_node(state: DisputeState) -> DisputeState:
@@ -124,6 +125,7 @@ async def investigation_node(state: DisputeState) -> DisputeState:
     investigation_summary = {
         "transaction_amount": tx_data.get("amount"),
         "transaction_status": tx_data.get("status"),
+        "transaction_timestamp": tx_data.get("created_at"),
         "payment_method": tx_data.get("payment_method"),
         "refunded_amount": tx_data.get("refunded_amount", 0.0),
         "eligible_refund_balance": tx_data.get("eligible_refund_balance"),
@@ -174,10 +176,17 @@ async def evidence_analysis_node(state: DisputeState) -> DisputeState:
 
     # Indirect prompt injection check in extracted text
     indirect_threat_found = False
+    if "warnings" not in state:
+        state["warnings"] = []
+
     for item in evidence_items:
         text = item.get("extracted_text", "")
         if text:
             check = PromptInjectionShield.scan_and_sanitize(text, is_untrusted_evidence=True)
+            item["is_untrusted_evidence"] = True
+            item["sanitized_text"] = check.sanitized_text
+            if check.warnings:
+                state["warnings"].extend(check.warnings)
             if check.threat_detected:
                 indirect_threat_found = True
                 state["errors"].append(f"Security Alert: Indirect prompt injection detected in evidence file '{item.get('filename')}': {check.threat_type}")
@@ -196,6 +205,8 @@ async def evidence_analysis_node(state: DisputeState) -> DisputeState:
         "item_count": len(evidence_items),
         "average_authenticity_score": avg_score,
         "contains_adversarial_payload": indirect_threat_found,
+        "is_untrusted_evidence": True,
+        "warnings": state.get("warnings", []),
     }
     state["current_stage"] = "POLICY_ADVISORY"
     state["status"] = "POLICY_EVALUATION"
@@ -213,44 +224,57 @@ async def policy_advisory_node(state: DisputeState) -> DisputeState:
     """
     Policy Agent: Formulates an ADVISORY recommendation citing financial policies.
     Explicit Boundary: Output is strictly advisory and treated as untrusted input by Policy Engine.
+    Uses configurable LLM provider (OpenAI-compatible or deterministic MockLLMProvider).
     """
     now = datetime.now(timezone.utc).isoformat()
-    inv = state.get("investigation_findings", {})
-    ev = state.get("evidence_findings", {})
-    amount = state.get("disputed_amount", 0.0)
+    llm_provider = get_llm_provider()
+    
+    try:
+        advisory_output = await llm_provider.generate_advisory(state)
+    except LLMProviderUnavailableError as err:
+        state.setdefault("errors", []).append(f"AI Policy Advisor Error: {str(err)}")
+        state["status"] = "FAILED"
+        state["current_stage"] = "SUPERVISOR"
+        state.setdefault("timeline", []).append({
+            "stage": "POLICY_ADVISORY_FAILED",
+            "timestamp": now,
+            "agent": "policy_advisor_agent",
+            "message": f"LLM provider failed: {str(err)}",
+        })
+        return state
 
-    # Advisory reasoning
-    citations = []
-    if amount > settings.POLICY_MAX_AUTO_REFUND_AMOUNT:
-        citations.append("RULE_MAX_AUTO_REFUND (Dispute exceeds ₹10,000 threshold)")
-    if inv.get("customer_prior_chargebacks", 0) >= settings.POLICY_CUSTOMER_CHARGEBACK_LIMIT:
-        citations.append("RULE_CUSTOMER_CHARGEBACK_CAP (Customer has elevated chargebacks)")
-    if ev.get("average_authenticity_score", 1.0) < 0.60:
-        citations.append("RULE_EVIDENCE_INTEGRITY (Evidence authenticity is low)")
-
-    if not citations and amount <= settings.POLICY_MAX_AUTO_REFUND_AMOUNT:
-        recommended_action = "APPROVE_REFUND"
-        rationale = "Claim meets low-risk thresholds and complies with automated dispute policy."
-    elif any("RULE_MAX_AUTO_REFUND" in c or "CHARGEBACK_CAP" in c for c in citations):
-        recommended_action = "ESCALATE_TO_HUMAN"
-        rationale = f"Risk criteria triggered: {', '.join(citations)}"
-    else:
-        recommended_action = "REJECT_DISPUTE"
-        rationale = f"Dispute failed evidentiary checks: {', '.join(citations)}"
+    rec_val = advisory_output.recommended_action.value if hasattr(advisory_output.recommended_action, "value") else str(advisory_output.recommended_action)
 
     state["policy_advisory"] = {
-        "recommended_action": recommended_action,
-        "cited_rules": citations,
-        "rationale": rationale,
+        "recommended_action": rec_val,
+        "confidence_score": advisory_output.confidence_score,
+        "cited_rules": advisory_output.cited_rules,
+        "rationale": advisory_output.rationale,
+        "risk_summary": advisory_output.risk_summary,
+        "provider_used": advisory_output.provider_used,
+        "fallback_triggered": advisory_output.fallback_triggered,
+        "error_reason": advisory_output.error_reason,
         "is_advisory_only": True,
     }
+
+    if advisory_output.fallback_triggered:
+        state.setdefault("warnings", []).append(
+            f"Observability Alert: Primary LLM provider failed ({advisory_output.error_reason}). Explicit fallback engaged."
+        )
+        state.setdefault("timeline", []).append({
+            "stage": "POLICY_ADVISORY_FALLBACK_ENGAGED",
+            "timestamp": now,
+            "agent": "policy_advisor_agent",
+            "message": f"Fell back to deterministic mock advisor: {advisory_output.error_reason}",
+        })
+
     state["current_stage"] = "POLICY_ENGINE"
 
-    state["timeline"].append({
+    state.setdefault("timeline", []).append({
         "stage": "POLICY_ADVISORY_PRODUCED",
         "timestamp": now,
         "agent": "policy_advisor_agent",
-        "message": f"AI Recommendation: {recommended_action}. Cited policies: {len(citations)} rules.",
+        "message": f"AI Recommendation: {rec_val} (Confidence: {advisory_output.confidence_score:.2f}, Provider: {advisory_output.provider_used}). Cited policies: {len(advisory_output.cited_rules)} rules.",
     })
     return state
 
@@ -277,6 +301,39 @@ async def policy_engine_node(state: DisputeState) -> DisputeState:
     inv = state.get("investigation_findings", {})
     ev = state.get("evidence_findings", {})
 
+    # Extract and normalize authoritative transaction timestamp
+    raw_tx_time = inv.get("transaction_timestamp")
+    tx_timestamp: Optional[datetime] = None
+    if raw_tx_time:
+        if isinstance(raw_tx_time, datetime):
+            tx_timestamp = raw_tx_time if raw_tx_time.tzinfo else raw_tx_time.replace(tzinfo=timezone.utc)
+        else:
+            try:
+                parsed_dt = datetime.fromisoformat(str(raw_tx_time))
+                tx_timestamp = parsed_dt if parsed_dt.tzinfo else parsed_dt.replace(tzinfo=timezone.utc)
+            except Exception:
+                tx_timestamp = None
+
+    if tx_timestamp is None:
+        state["errors"].append("Policy Error: Missing or unparseable authoritative transaction timestamp. Automated evaluation halted.")
+        state["status"] = "POLICY_REJECTED"
+        state["current_stage"] = "SUPERVISOR"
+        state["policy_engine_result"] = {
+            "dispute_id": state["dispute_id"],
+            "overall_verdict": PolicyVerdict.POLICY_REJECTED.value,
+            "reasons": ["REJECTED: Missing or unparseable authoritative transaction timestamp"],
+            "evaluations": [],
+            "execution_permitted": False,
+            "policy_token": None,
+        }
+        state["timeline"].append({
+            "stage": "POLICY_EVALUATION_FAILED",
+            "timestamp": now,
+            "agent": "deterministic_policy_engine",
+            "message": "Deterministic policy rejected: Missing or invalid transaction timestamp.",
+        })
+        return state
+
     # Construct strict policy context
     ctx = PolicyContext(
         dispute_id=state["dispute_id"],
@@ -287,7 +344,7 @@ async def policy_engine_node(state: DisputeState) -> DisputeState:
         transaction_amount=inv.get("transaction_amount", state["disputed_amount"]),
         cumulative_refunded_amount=inv.get("refunded_amount", 0.0),
         transaction_status=inv.get("transaction_status", "SETTLED"),
-        transaction_timestamp=datetime.now(timezone.utc),  # or extracted from DB
+        transaction_timestamp=tx_timestamp,
         merchant_risk_score=inv.get("merchant_risk_score", 0.1),
         merchant_dispute_rate=inv.get("merchant_dispute_rate", 0.005),
         merchant_status=inv.get("merchant_status", "ACTIVE"),
@@ -392,33 +449,38 @@ async def resolution_node(state: DisputeState) -> DisputeState:
     # 1. Execution path: Auto-Approved or Human-Approved
     if verdict == PolicyVerdict.AUTO_APPROVED.value or state.get("human_approval_status") == "APPROVED":
         if not token:
-            state["errors"].append("Resolution error: Missing cryptographically signed PolicyToken for execution")
+            state.setdefault("errors", []).append("Resolution error: Missing cryptographically signed PolicyToken for execution")
             state["status"] = "FAILED"
             return state
 
-        async with AsyncSessionLocal() as session:
-            mcp_res = await FinancialMCPServer.call_tool(
-                session=session,
-                tool_name="create_refund_request",
-                arguments={
-                    "dispute_id": state["dispute_id"],
-                    "transaction_id": state["transaction_id"],
-                    "amount": state["disputed_amount"],
-                    "idempotency_key": state["idempotency_key"],
-                    "policy_token": token,
-                },
-                caller=caller,
-            )
+        try:
+            async with AsyncSessionLocal() as session:
+                mcp_res = await FinancialMCPServer.call_tool(
+                    session=session,
+                    tool_name="create_refund_request",
+                    arguments={
+                        "dispute_id": state.get("dispute_id", ""),
+                        "transaction_id": state.get("transaction_id", ""),
+                        "amount": state.get("disputed_amount", 0.0),
+                        "idempotency_key": state.get("idempotency_key") or f"idemp_{state.get('dispute_id', 'disp')[:8]}_{uuid.uuid4().hex[:6]}",
+                        "policy_token": token,
+                    },
+                    caller=caller,
+                )
+        except Exception as exc:
+            state.setdefault("errors", []).append(f"Financial execution failed: {str(exc)}")
+            state["status"] = "FAILED"
+            return state
 
         if mcp_res["isError"]:
             err_data = json.loads(mcp_res["content"][0]["text"])
-            state["errors"].append(f"Financial execution failed: {err_data.get('error')}")
+            state.setdefault("errors", []).append(f"Financial execution failed: {err_data.get('error')}")
             state["status"] = "FAILED"
         else:
             exec_data = json.loads(mcp_res["content"][0]["text"])
             state["execution_result"] = exec_data
             state["status"] = "RESOLVED_REFUNDED"
-            state["timeline"].append({
+            state.setdefault("timeline", []).append({
                 "stage": "FINANCIAL_EXECUTION_COMPLETED",
                 "timestamp": now,
                 "agent": "resolution_agent",

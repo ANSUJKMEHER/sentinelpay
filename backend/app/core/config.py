@@ -19,7 +19,15 @@ class Settings(BaseSettings):
     POLICY_TOKEN_EXPIRE_SECONDS: int = 60  # Short-lived policy execution authorization token
 
     # Database: Defaults to SQLite for local development; supports PostgreSQL in Docker/Prod
-    DATABASE_URL: str = "sqlite+aiosqlite:///./sentinelpay.db"
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        f"sqlite+aiosqlite:///{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'sentinelpay.db')).replace(os.sep, '/')}"
+    )
+    CHECKPOINT_DB_PATH: str = os.getenv(
+        "CHECKPOINT_DB_PATH",
+        os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'sentinelpay_checkpoints.db')).replace(os.sep, '/')
+    )
+    USE_PERSISTENT_CHECKPOINTER: bool = True
 
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = [
@@ -39,6 +47,15 @@ class Settings(BaseSettings):
     # MCP Gateway Settings
     MCP_SERVER_PORT: int = 8001
     MCP_SERVER_HOST: str = "127.0.0.1"
+
+    # LLM Settings (OpenAI-compatible)
+    LLM_PROVIDER: str = "mock"  # "mock" | "openai"
+    OPENAI_API_KEY: str = ""
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+    OPENAI_MODEL: str = "gpt-4o-mini"
+    LLM_TIMEOUT_SECONDS: float = 10.0
+    LLM_MAX_RETRIES: int = 2
+    LLM_ALLOW_MOCK_FALLBACK: bool = True  # If False, raises LLMProviderUnavailableError in staging/prod
 
     # Observability
     OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://localhost:4317"

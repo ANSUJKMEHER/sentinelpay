@@ -48,6 +48,8 @@ def create_policy_execution_token(
     merchant_id: str,
     approved_by: str,
     role: str = "POLICY_ENGINE",
+    policy_version: int = 1,
+    expires_delta: Optional[timedelta] = None,
 ) -> str:
     """
     Issues a short-lived cryptographically signed token generated solely by the
@@ -56,7 +58,10 @@ def create_policy_execution_token(
     destructive or financial operations (e.g. execute_refund, issue_credit).
     """
     now = datetime.now(timezone.utc)
-    expire = now + timedelta(seconds=settings.POLICY_TOKEN_EXPIRE_SECONDS)
+    if expires_delta is not None:
+        expire = now + expires_delta
+    else:
+        expire = now + timedelta(seconds=settings.POLICY_TOKEN_EXPIRE_SECONDS)
     payload = {
         "iss": "sentinelpay:policy_engine",
         "sub": dispute_id,
@@ -67,6 +72,7 @@ def create_policy_execution_token(
         "merchant_id": merchant_id,
         "approved_by": approved_by,
         "role": role,
+        "policy_version": policy_version,
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
     }
@@ -80,4 +86,6 @@ def verify_policy_execution_token(token: str) -> Dict[str, Any]:
     payload = jwt.decode(token, settings.POLICY_TOKEN_SECRET, algorithms=[settings.ALGORITHM])
     if payload.get("iss") != "sentinelpay:policy_engine":
         raise jwt.InvalidIssuerError("Invalid policy token issuer")
+    if not payload.get("sub") or not payload.get("transaction_id") or not payload.get("merchant_id"):
+        raise jwt.InvalidTokenError("Malformed policy token: missing critical claims (sub/transaction_id/merchant_id)")
     return payload

@@ -138,6 +138,7 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=generate_uuid)
+    sequence_id: Mapped[int] = mapped_column(Integer, unique=True, index=True, nullable=False)
     trace_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     event_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     actor_type: Mapped[str] = mapped_column(String(50), nullable=False)  # AGENT, POLICY_ENGINE, HUMAN, MCP_TOOL, SECURITY
@@ -146,3 +147,26 @@ class AuditLog(Base):
     prev_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     current_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[str] = mapped_column(String(50), nullable=False)
+
+
+class ConsumedPolicyToken(Base, TimestampMixin):
+    """
+    P1 Hardening: Single-use policy token storage.
+    Enforces replay protection: Once a signed policy token is consumed to execute
+    a financial operation, its SHA-256 hash is permanently recorded. Any subsequent
+    replay attempt — even with a different idempotency key or altered client arguments —
+    is deterministically rejected.
+    """
+    __tablename__ = "consumed_policy_tokens"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)  # SHA-256 of policy token
+    dispute_id: Mapped[str] = mapped_column(String(36), ForeignKey("disputes.id"), nullable=False, index=True)
+    transaction_id: Mapped[str] = mapped_column(String(36), ForeignKey("transactions.id"), nullable=False, index=True)
+    merchant_id: Mapped[str] = mapped_column(String(36), ForeignKey("merchants.id"), nullable=False, index=True)
+    amount: Mapped[float] = mapped_column(Float, nullable=False)
+    action_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    policy_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    consumed_by: Mapped[str] = mapped_column(String(100), nullable=False)
+    consumed_at: Mapped[str] = mapped_column(String(50), nullable=False)
+

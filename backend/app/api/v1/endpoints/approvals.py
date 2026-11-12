@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.checkpoint import format_thread_id
 from app.agents.graph import dispute_orchestrator
 from app.api.deps import get_current_actor, require_role
 from app.db.models import ApprovalRequest, Dispute
@@ -97,7 +98,7 @@ async def resolve_approval(
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Policy Engine rejected human authorization token issuance")
 
         # 2. Resume LangGraph workflow
-        config = {"configurable": {"thread_id": disp.id}}
+        config = {"configurable": {"thread_id": format_thread_id(disp.merchant_id, disp.id)}}
         resume_payload = {
             "human_approval_status": "APPROVED",
             "human_approver_id": actor.user_id,

@@ -312,3 +312,36 @@ flowchart LR
 5. **Evaluation Benchmark Suite**:
    - Synthetic dataset of 50+ diverse dispute scenarios across 6 dispute classes.
    - Metrics: Correct Classification Rate, Policy Adherence Rate (target: 100%), False Auto-Approval Rate (target: 0%), Injection Interception Rate (target: 100%).
+
+---
+
+## 9. Production Hardening Implementation & Verification (P0 & P1)
+
+### 9.1 P0: Authoritative Historical Transaction Timestamps
+- **Vulnerability Remediated**: Replaced hardcoded `datetime.now()` in `policy_engine_node` with authoritative transaction timestamps extracted from the database/investigation ledger.
+- **Regulatory Dispute Window**: Strict enforcement of the 60-day regulatory window (`RULE_DISPUTE_WINDOW`) measured from transaction creation/settlement time.
+- **Fail-Closed Edge Case Handling**: Naive datetimes are normalized to UTC; future transaction timestamps and missing/unparseable timestamps trigger deterministic fail-closed policy rejections.
+
+### 9.2 P0: Audit Hash-Chain Concurrency & Monotonic Sequence Locking
+- **Vulnerability Remediated**: Eliminated concurrent hash-chain forking where parallel writers queried identical `prev_hash` before insertion.
+- **Implementation**:
+  - Added monotonic `sequence_id` column with unique index to `AuditLog`.
+  - Implemented event loop-scoped asynchronous synchronization lock (`_get_loop_lock()`).
+  - Added PostgreSQL transaction-scoped advisory locks (`pg_advisory_xact_lock(89472918471)`) for distributed serialization.
+  - Hardened `AuditService.verify_chain` to deterministically verify both sequence continuity ($seq_{i+1} = seq_i + 1$) and cryptographic link integrity ($prev\_hash_{i+1} = current\_hash_i$).
+- **Verification**: 25 concurrent writer tasks executed via `asyncio.gather` with 0 forks, 0 gaps, and 100% cryptographic ledger integrity verified.
+
+### 9.3 P1: Single-Use Policy Tokens & Replay Defense
+- **Vulnerability Remediated**: Eliminated window where a signed PolicyToken could be re-executed with a different idempotency key within its 60-second validity window.
+- **Implementation**:
+  - Created `ConsumedPolicyToken` table storing SHA-256 token hashes, dispute IDs, transaction IDs, amounts, actions, policy versions, and consumer IDs.
+  - Atomic insertion of `ConsumedPolicyToken` and `ExecutionLedger` within the same financial database transaction.
+  - Unique constraint on `token_hash` guarantees single-use semantics even under concurrent racing requests.
+
+### 9.4 P1: SQLAlchemy Session Rollback on Tool Execution Failure
+- **Vulnerability Remediated**: Prevented `PendingRollbackError` and partial state leakage when MCP tool handlers encounter exceptions.
+- **Implementation**:
+  - Immediate `await session.rollback()` on all `MCPExecutionError` and general exceptions in `FinancialMCPServer.call_tool`.
+  - Dedicated clean `AsyncSessionLocal` fallback for logging audit events when the caller session is in an aborted state.
+  - Verified no partial commits remain in the financial ledger upon failure.
+

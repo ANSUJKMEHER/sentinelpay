@@ -284,6 +284,24 @@ export const DisputesTab: React.FC<DisputesTabProps> = ({
               </div>
             </div>
 
+            {/* Evidence Security & OCR Verification Card */}
+            <div className="space-y-2 text-xs bg-gray-950/60 p-3.5 rounded-lg border border-gray-800">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-gray-300 uppercase tracking-wide">Evidentiary OCR & Document Integrity:</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-800 text-gray-300">
+                  Untrusted Input Tagged
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-400">
+                Uploaded PDFs, receipts, and OCR extractions are treated as untrusted inputs. Heuristic prompt-injection screening and Unicode confusable canonicalization are applied before policy evaluation.
+              </p>
+              {selectedDispute.policy_reason && (selectedDispute.policy_reason.includes('adversarial') || selectedDispute.policy_reason.includes('injection')) && (
+                <div className="p-2.5 rounded bg-red-950/40 border border-red-500/40 text-red-300 text-[11px] font-mono">
+                  &bull; Warning: Adversarial injection payload detected in evidentiary text. Document authenticity score penalized.
+                </div>
+              )}
+            </div>
+
             {selectedDispute.final_resolution && (
               <div className="space-y-1 text-xs bg-emerald-950/30 p-3 rounded-lg border border-emerald-500/30">
                 <span className="font-bold text-emerald-400">Execution / Final Resolution:</span>
