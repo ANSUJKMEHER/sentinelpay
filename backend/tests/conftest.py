@@ -1,9 +1,22 @@
 import os
 import sqlite3
 import pytest
+from sqlalchemy import text
 from app.core.config import settings
+from app.db.session import engine
 
 DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "sentinelpay.db"))
+
+
+@pytest.fixture(scope="session", autouse=True)
+def ensure_database_seeded():
+    """Ensures database is initialized and seeded for both SQLite and PostgreSQL test runners."""
+    import asyncio
+    from app.db.seed_data import seed_database
+    try:
+        asyncio.run(seed_database())
+    except Exception:
+        pass
 
 
 @pytest.fixture(autouse=True)
@@ -19,6 +32,13 @@ def clean_transaction_state():
             cur.execute("UPDATE transactions SET refunded_amount = 0.0, status = 'SETTLED'")
             conn.commit()
             conn.close()
+        except Exception:
+            pass
+    elif settings.DATABASE_URL.startswith("postgres"):
+        try:
+            with engine.sync_engine.connect() as conn:
+                conn.execute(text("UPDATE transactions SET refunded_amount = 0.0, status = 'SETTLED'"))
+                conn.commit()
         except Exception:
             pass
     yield

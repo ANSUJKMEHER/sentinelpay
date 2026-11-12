@@ -60,6 +60,13 @@ jobs:
         run: |
           alembic upgrade head
 
+      - name: Seed Synthetic Initial Data on Live PostgreSQL
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://sentinel:sentinel_secure_password_999@localhost:5432/sentinelpay
+        run: |
+          python -c "import asyncio; from app.db.seed_data import seed_database; asyncio.run(seed_database())"
+
       - name: Run Live PostgreSQL Concurrency & Advisory Lock Verification
         working-directory: ./backend
         env:

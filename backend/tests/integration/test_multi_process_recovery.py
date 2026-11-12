@@ -21,6 +21,7 @@ BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."
 def run_python_process(code: str, env: dict = None) -> subprocess.CompletedProcess:
     process_env = os.environ.copy()
     process_env["PYTHONPATH"] = BACKEND_DIR
+    process_env["LLM_PROVIDER"] = "mock"
     if env:
         process_env.update(env)
     return subprocess.run(
@@ -380,6 +381,7 @@ def test_multi_process_termination_during_execution_and_recovery():
     Process is abruptly killed via SIGKILL (proc.kill()), and subsequent process recovers state safely.
     """
     test_cp_db = os.path.join(tempfile.gettempdir(), f"mp_kill_{uuid.uuid4().hex[:8]}.db").replace("\\", "/")
+    ready_file = os.path.join(tempfile.gettempdir(), f"mp_ready_{uuid.uuid4().hex[:8]}.txt").replace("\\", "/")
     dispute_id = f"disp_kill_{uuid.uuid4().hex[:8]}"
     merchant_id = "mch_zenith_04"
     thread_id = format_thread_id(merchant_id, dispute_id)
@@ -393,7 +395,7 @@ from app.agents.graph import build_dispute_graph
 from app.agents.state import create_initial_state
 
 async def main():
-    saver = await create_sqlite_checkpointer("{test_cp_db}")
+    saver = await create_sqlite_checkpointer(r"{test_cp_db}")
     graph = build_dispute_graph(checkpointer=saver)
     initial_state = create_initial_state(
         dispute_id="{dispute_id}",
@@ -406,9 +408,9 @@ async def main():
         idempotency_key="idemp_kill_1",
     )
     res = await graph.ainvoke(initial_state, config={{"configurable": {{"thread_id": "{thread_id}"}}}})
-    # Signal checkpoint has been written
-    sys.stdout.write("CHECKPOINT_SAVED\\n")
-    sys.stdout.flush()
+    # Write atomic readiness file to confirm checkpoint has been persisted
+    with open(r"{ready_file}", "w") as f:
+        f.write("CHECKPOINT_SAVED")
     # Hang process to simulate crash during execution
     while True:
         await asyncio.sleep(0.5)
@@ -417,29 +419,42 @@ asyncio.run(main())
 """
         process_env = os.environ.copy()
         process_env["PYTHONPATH"] = BACKEND_DIR
+        process_env["LLM_PROVIDER"] = "mock"
 
-        proc = subprocess.Popen(
-            [sys.executable, "-c", code_init],
-            cwd=BACKEND_DIR,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            env=process_env,
-        )
-        # Wait for confirmation that checkpoint is saved
+        log_file = os.path.join(tempfile.gettempdir(), f"mp_log_{uuid.uuid4().hex[:8]}.txt").replace("\\", "/")
+        with open(log_file, "w", encoding="utf-8") as lf:
+            proc = subprocess.Popen(
+                [sys.executable, "-c", code_init],
+                cwd=BACKEND_DIR,
+                stdout=lf,
+                stderr=lf,
+                env=process_env,
+            )
+
+        # Wait for confirmation that checkpoint is saved (strictly bounded 30s timeout)
         checkpoint_saved = False
-        for _ in range(500):
-            line = proc.stdout.readline()
-            if not line:
-                break
-            if "CHECKPOINT_SAVED" in line:
+        start_wait = time.time()
+        while time.time() - start_wait < 30.0:
+            if os.path.exists(ready_file):
                 checkpoint_saved = True
                 break
-        assert checkpoint_saved, "Process A failed to reach CHECKPOINT_SAVED before timeout"
+            if proc.poll() is not None:
+                break
+            time.sleep(0.2)
 
         # Abruptly kill the process (SIGKILL emulation)
         proc.kill()
         proc.wait(timeout=5)
+
+        log_content = ""
+        if os.path.exists(log_file):
+            try:
+                with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
+                    log_content = f.read()
+            except Exception:
+                pass
+
+        assert checkpoint_saved, f"Process A failed to reach CHECKPOINT_SAVED before timeout. Diagnostic logs:\n{log_content}"
 
         # Start fresh Recovery Process C to verify database integrity
         code_recover = f"""
@@ -447,7 +462,7 @@ import asyncio, sys
 from app.agents.checkpoint import create_sqlite_checkpointer
 
 async def main():
-    saver = await create_sqlite_checkpointer("{test_cp_db}")
+    saver = await create_sqlite_checkpointer(r"{test_cp_db}")
     config = {{"configurable": {{"thread_id": "{thread_id}"}}}}
     tuple_data = await saver.aget_tuple(config)
     assert tuple_data is not None
@@ -461,6 +476,16 @@ asyncio.run(main())
         assert proc_recover.returncode == 0, f"Recovery process failed: {proc_recover.stderr}"
 
     finally:
+        if os.path.exists(ready_file):
+            try:
+                os.remove(ready_file)
+            except Exception:
+                pass
+        if os.path.exists(log_file):
+            try:
+                os.remove(log_file)
+            except Exception:
+                pass
         for suffix in ["", "-wal", "-shm"]:
             p = test_cp_db + suffix
             if os.path.exists(p):

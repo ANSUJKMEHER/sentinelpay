@@ -2,7 +2,7 @@ import json
 import socket
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 
 from app.agents.llm_provider import (
@@ -51,7 +51,7 @@ class LiveMockOpenAIHandler(BaseHTTPRequestHandler):
             return
 
         if LiveMockOpenAIHandler.mode == "slow_timeout":
-            time.sleep(1.2)  # Exceeds client's 0.5s timeout
+            time.sleep(0.8)  # Exceeds client's 0.3s timeout
 
         if LiveMockOpenAIHandler.mode == "invalid_json":
             self.send_response(200)
@@ -96,7 +96,8 @@ class LiveMockOpenAIHandler(BaseHTTPRequestHandler):
 @pytest.fixture(scope="module")
 def live_http_server():
     """Runs a real live HTTP server on localhost on a free ephemeral port."""
-    server = HTTPServer(("127.0.0.1", 0), LiveMockOpenAIHandler)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), LiveMockOpenAIHandler)
+    server.daemon_threads = True
     host, port = server.server_address
     server_thread = threading.Thread(target=server.serve_forever, daemon=True)
     server_thread.start()
