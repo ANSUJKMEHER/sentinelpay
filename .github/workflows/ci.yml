@@ -80,6 +80,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://sentinel:sentinel_secure_password_999@localhost:5432/sentinelpay
           ENVIRONMENT: staging
+          TESTING: "true"
           LLM_ALLOW_MOCK_FALLBACK: "true"
         run: |
           pytest -v -s --timeout=60

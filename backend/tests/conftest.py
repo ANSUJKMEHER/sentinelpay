@@ -38,3 +38,8 @@ def clean_transaction_state():
     _reset_transaction_balances()
     yield
     _reset_transaction_balances()
+    try:
+        from app.db.session import engine
+        engine.sync_engine.dispose()
+    except Exception:
+        pass

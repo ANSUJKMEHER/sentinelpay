@@ -103,7 +103,8 @@ class AuditService:
         try:
             bind = session.bind
             if bind and bind.dialect.name == "postgresql":
-                await session.execute(text(f"SELECT pg_advisory_xact_lock({cls.PG_AUDIT_ADVISORY_LOCK_ID})"))
+                lock_res = await session.execute(text(f"SELECT pg_advisory_xact_lock({cls.PG_AUDIT_ADVISORY_LOCK_ID})"))
+                lock_res.scalar()
         except Exception:
             pass  # Fall back gracefully if dialect does not support advisory lock
 
