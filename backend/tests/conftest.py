@@ -12,6 +12,11 @@ def _reset_transaction_balances():
             conn = sqlite3.connect(DB_PATH, timeout=10.0)
             cur = conn.cursor()
             cur.execute("UPDATE transactions SET refunded_amount = 0.0, status = 'SETTLED'")
+            cur.execute("DELETE FROM execution_ledger")
+            cur.execute("DELETE FROM consumed_policy_tokens")
+            cur.execute("DELETE FROM approval_requests")
+            cur.execute("DELETE FROM evidence")
+            cur.execute("DELETE FROM disputes")
             conn.commit()
             conn.close()
         except Exception:
@@ -23,6 +28,11 @@ def _reset_transaction_balances():
             with psycopg.connect(pg_url) as conn:
                 with conn.cursor() as cur:
                     cur.execute("UPDATE transactions SET refunded_amount = 0.0, status = 'SETTLED'")
+                    cur.execute("DELETE FROM execution_ledger")
+                    cur.execute("DELETE FROM consumed_policy_tokens")
+                    cur.execute("DELETE FROM approval_requests")
+                    cur.execute("DELETE FROM evidence")
+                    cur.execute("DELETE FROM disputes")
                 conn.commit()
         except Exception:
             pass

@@ -97,8 +97,10 @@ async def verify_live_postgresql(db_url: str) -> bool:
 
         # 2. Verify pg_advisory_xact_lock
         async with session_factory() as session:
-            await session.execute(text(f"SELECT pg_advisory_xact_lock({AuditService.PG_AUDIT_ADVISORY_LOCK_ID})"))
-            print(f"[OK] Successfully acquired PostgreSQL advisory lock {AuditService.PG_AUDIT_ADVISORY_LOCK_ID}.")
+            lock_res = await session.execute(text(f"SELECT pg_advisory_xact_lock({AuditService.PG_AUDIT_ADVISORY_LOCK_ID})"))
+            lock_res.scalar()
+            await session.commit()
+            print(f"[OK] Successfully acquired and released PostgreSQL advisory lock {AuditService.PG_AUDIT_ADVISORY_LOCK_ID}.")
 
         # 3. Test concurrent audit appends across 20 parallel connections
         print("\n[TEST] Appending 20 concurrent audit events across independent sessions...")

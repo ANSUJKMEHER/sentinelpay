@@ -395,10 +395,12 @@ class FinancialMCPServer:
                 final_resolution=f"Refund of ₹{inp.amount:.2f} executed via MCP Gateway ({mcp_ref})",
             )
             session.add(disp)
+            await session.flush()
         else:
             disp.status = "RESOLVED_REFUNDED"
             disp.current_stage = "COMPLETED"
             disp.final_resolution = f"Refund of ₹{inp.amount:.2f} executed via MCP Gateway ({mcp_ref})"
+            await session.flush()
 
         # 7. Atomically consume policy token and record execution
         consumed_entry = ConsumedPolicyToken(
@@ -432,18 +434,18 @@ class FinancialMCPServer:
             await session.commit()
         except IntegrityError as ie:
             await session.rollback()
-            err_str = str(ie)
-            if "consumed_policy_tokens" in err_str or "token_hash" in err_str:
+            err_str = str(ie).lower()
+            if "consumed_policy_tokens" in err_str and ("token_hash" in err_str or "pk" in err_str or "unique" in err_str):
                 raise MCPExecutionError(
                     f"Replay Violation: Policy execution token has already been consumed (single-use token violation). Token hash: {token_hash[:16]}...",
                     code=-32006,
                 )
-            elif "execution_ledger" in err_str or "idempotency_key" in err_str:
+            elif "execution_ledger" in err_str and ("idempotency_key" in err_str or "unique" in err_str):
                 raise MCPExecutionError(
                     f"Idempotency violation: execution already recorded for key '{inp.idempotency_key}'",
                     code=-32005,
                 )
-            raise MCPExecutionError(f"Database integrity violation: {err_str}", code=-32005)
+            raise MCPExecutionError(f"Database integrity violation: {str(ie)}", code=-32005)
 
         return CreateRefundRequestOutput(
             success=True,

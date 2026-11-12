@@ -2,6 +2,7 @@ import asyncio
 import json
 import uuid
 import pytest
+from sqlalchemy import select
 from app.core.security import create_policy_execution_token
 from app.db.session import AsyncSessionLocal
 from app.mcp.schemas import MCPCallerIdentity
@@ -214,6 +215,23 @@ async def test_concurrent_token_replay_rejected():
     """
     caller = MCPCallerIdentity(actor_id="agent_res", actor_role="AGENT", trace_id="trace_race_token")
     idempotency_key = f"idemp_race_{uuid.uuid4().hex[:8]}"
+
+    # Ensure parent dispute row exists for concurrent token race testing
+    async with AsyncSessionLocal() as session:
+        from app.db.models import Dispute
+        disp_q = select(Dispute).where(Dispute.id == "disp_race_test")
+        if not (await session.execute(disp_q)).scalar_one_or_none():
+            disp = Dispute(
+                id="disp_race_test",
+                transaction_id="txn_1001",
+                merchant_id="mch_quickbite_02",
+                dispute_type="unauthorized_transaction",
+                disputed_amount=10.0,
+                status="OPEN",
+                current_stage="EVALUATING",
+            )
+            session.add(disp)
+            await session.commit()
 
     token = create_policy_execution_token(
         dispute_id="disp_race_test",
