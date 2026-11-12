@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sentinelpay-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: sentinel_secure_password_999
+      POSTGRES_DB: sentinelpay
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinelpay"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: sentinelpay-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sentinelpay-backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: production
+      DEBUG: "false"
+      DATABASE_URL: postgresql+asyncpg://sentinel:sentinel_secure_password_999@postgres:5432/sentinelpay
+      SECRET_KEY: sentinelpay_prod_super_secret_jwt_key_must_be_32_bytes_long!
+      POLICY_TOKEN_SECRET: sentinelpay_prod_policy_execution_secret_key_999!
+      POLICY_MAX_AUTO_REFUND_AMOUNT: 10000.0
+      POLICY_MAX_DISPUTE_WINDOW_DAYS: 60
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sentinelpay-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  postgres_data:
+  redis_data:
