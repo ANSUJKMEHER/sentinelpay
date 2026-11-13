@@ -53,3 +53,25 @@ def clean_transaction_state():
         engine.sync_engine.dispose()
     except Exception:
         pass
+
+
+_session_exitstatus = 0
+
+
+def pytest_sessionfinish(session, exitstatus):
+    global _session_exitstatus
+    _session_exitstatus = exitstatus
+
+
+def pytest_unconfigure(config):
+    """
+    Ensure the test process exits immediately with the pytest exit code once all tests
+    and terminal reports complete, preventing any dangling background threads, sockets,
+    or connection pools from keeping the runner process alive.
+    """
+    import sys
+    sys.stdout.flush()
+    sys.stderr.flush()
+    if os.getenv("CI") or os.getenv("TESTING") or os.getenv("ENVIRONMENT") == "staging":
+        os._exit(_session_exitstatus)
+

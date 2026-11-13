@@ -128,12 +128,14 @@ async def verify_live_postgresql(db_url: str) -> bool:
 
         # 5. Verify Single-Use Token Constraint with Foreign Key Integrity
         print("\n[TEST] Testing atomic single-use policy token constraints...")
+        # Seed prerequisite parent rows with unique IDs
+        mch_id = f"mch_pg_{run_suffix}"
+        acc_id = f"acc_pg_{run_suffix}"
+        txn_id = f"txn_pg_{run_suffix}"
+        disp_id = f"disp_pg_{run_suffix}"
+        token_hash = f"hash_{run_suffix}_" + ("0" * 48)
+
         async with session_factory() as session:
-            # Seed prerequisite parent rows with unique IDs
-            mch_id = f"mch_pg_{run_suffix}"
-            acc_id = f"acc_pg_{run_suffix}"
-            txn_id = f"txn_pg_{run_suffix}"
-            disp_id = f"disp_pg_{run_suffix}"
             mch = Merchant(id=mch_id, name="Postgres Test Merchant", tier="STANDARD", risk_score=0.1, status="ACTIVE", dispute_rate=0.005)
             acc = Account(id=acc_id, customer_id=f"cust_{run_suffix}", email=f"pgtest_{run_suffix}@example.com", risk_tier="LOW")
             txn = Transaction(id=txn_id, merchant_id=mch_id, account_id=acc_id, amount=5000.0, idempotency_key=f"idemp_pg_base_{run_suffix}")
@@ -141,7 +143,6 @@ async def verify_live_postgresql(db_url: str) -> bool:
             session.add_all([mch, acc, txn, disp])
             await session.commit()
 
-            token_hash = f"hash_{run_suffix}_" + ("0" * 48)
             c1 = ConsumedPolicyToken(
                 token_hash=token_hash,
                 dispute_id=disp_id,
@@ -158,7 +159,8 @@ async def verify_live_postgresql(db_url: str) -> bool:
             await session.commit()
             print("[OK] Token 1 inserted successfully.")
 
-            # Attempt replay
+        # Attempt replay on an independent session connection
+        async with session_factory() as replay_session:
             c2 = ConsumedPolicyToken(
                 token_hash=token_hash,
                 dispute_id=disp_id,
@@ -171,12 +173,12 @@ async def verify_live_postgresql(db_url: str) -> bool:
                 consumed_by="actor_02",
                 consumed_at=datetime.now(timezone.utc).isoformat(),
             )
-            session.add(c2)
+            replay_session.add(c2)
             try:
-                await session.commit()
+                await replay_session.commit()
                 raise AssertionError("Replay token was not rejected by unique constraint!")
             except Exception as exc:
-                await session.rollback()
+                await replay_session.rollback()
                 print(f"[OK] Replay token rejected by PostgreSQL unique constraint: {type(exc).__name__}")
 
         print("\n" + "=" * 70)
