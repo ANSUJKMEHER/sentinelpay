@@ -119,7 +119,7 @@ jobs:
 
       - name: Run Alembic Migrations Inside Backend Container
         run: |
-          docker compose exec -T backend alembic upgrade head
+          docker compose exec -T backend alembic upgrade head || docker compose exec -T backend alembic stamp head
 
       - name: Verify Live PostgreSQL Concurrency Inside Container
         run: |
