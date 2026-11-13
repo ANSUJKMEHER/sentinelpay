@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
-import { ArrowUpDown, CheckCircle, CreditCard, RotateCw, Search } from 'lucide-react';
+import {
+  ArrowRight,
+  ArrowUpDown,
+  CheckCircle,
+  CreditCard,
+  FilePlus,
+  Lock,
+  Receipt,
+  RotateCw,
+  Search,
+  ShieldCheck,
+} from 'lucide-react';
 import { Transaction } from '../types';
 
 interface TransactionsTabProps {
@@ -25,13 +36,24 @@ export const TransactionsTab: React.FC<TransactionsTabProps> = ({
     );
   });
 
+  const totalSettled = transactions.reduce((acc, t) => acc + t.amount, 0);
+  const totalRefunded = transactions.reduce((acc, t) => acc + (t.refunded_amount || 0), 0);
+
   return (
-    <div className="space-y-6 py-6">
+    <div className="space-y-6 py-6 pb-28">
+      {/* Header & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Financial Transaction Ledger</h2>
-          <p className="text-xs text-gray-400">
-            Payment transactions with identity-scoped tenant access and PII masking.
+          <div className="flex items-center space-x-2">
+            <h2 className="text-xl font-extrabold text-white tracking-tight font-mono">
+              FINANCIAL TRANSACTIONS LEDGER
+            </h2>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              {transactions.length} SETTLED
+            </span>
+          </div>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Real-time ledger with automated PII masking, idempotent settlement, and eligible refund balance tracking.
           </p>
         </div>
 
@@ -43,78 +65,101 @@ export const TransactionsTab: React.FC<TransactionsTabProps> = ({
               placeholder="Search by ID, customer, merchant..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-gray-900 border border-gray-800 rounded-lg pl-9 pr-3 py-2 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-emerald-500 w-64"
+              className="bg-black/60 border border-white/[0.08] rounded-xl pl-9 pr-3 py-2 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-emerald-500 w-64 font-sans"
             />
           </div>
           <button
             onClick={onRefresh}
-            className="p-2 rounded-lg bg-gray-900 border border-gray-800 hover:bg-gray-800 text-gray-300 text-xs cursor-pointer"
+            className="p-2 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] text-gray-300 hover:text-white text-xs cursor-pointer transition-all"
+            title="Refresh Transactions"
           >
             <RotateCw className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-800 bg-gray-900/50 overflow-hidden shadow-xl">
+      {/* Quick Financial Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <div className="glass-card rounded-2xl p-4">
+          <span className="text-[10px] font-mono uppercase text-gray-500 block">Total Volume Settled</span>
+          <div className="text-2xl font-black text-white font-mono mt-0.5">
+            ₹{totalSettled.toLocaleString('en-IN')}
+          </div>
+          <p className="text-[10px] text-gray-500 font-mono">INR &bull; Authoritative Gateway Settlement</p>
+        </div>
+
+        <div className="glass-card rounded-2xl p-4 border-emerald-500/20">
+          <span className="text-[10px] font-mono uppercase text-emerald-500 block">Total Disputed & Refunded</span>
+          <div className="text-2xl font-black text-emerald-400 font-mono mt-0.5">
+            ₹{totalRefunded.toLocaleString('en-IN')}
+          </div>
+          <p className="text-[10px] text-emerald-500/80 font-mono">Scoped MCP Atomic Execution</p>
+        </div>
+
+        <div className="glass-card rounded-2xl p-4">
+          <span className="text-[10px] font-mono uppercase text-gray-500 block">PII Redaction Level</span>
+          <div className="text-xl font-bold text-white font-mono mt-0.5 flex items-center space-x-1.5">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span>Luhn / PAN Masked</span>
+          </div>
+          <p className="text-[10px] text-gray-500 font-mono">Zero Raw Cardholder Exposure</p>
+        </div>
+      </div>
+
+      {/* Transactions Table */}
+      <div className="glass-panel rounded-3xl overflow-hidden shadow-2xl border border-white/[0.08]">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-gray-950/80 text-gray-400 border-b border-gray-800">
+            <thead className="bg-[#0e1017]/90 text-gray-400 border-b border-white/[0.06] font-mono text-[11px] uppercase">
               <tr>
-                <th className="px-4 py-3 font-semibold">Transaction ID</th>
-                <th className="px-4 py-3 font-semibold">Merchant</th>
-                <th className="px-4 py-3 font-semibold">Customer (Masked)</th>
-                <th className="px-4 py-3 font-semibold">Method</th>
-                <th className="px-4 py-3 font-semibold">Amount</th>
-                <th className="px-4 py-3 font-semibold">Refunded</th>
-                <th className="px-4 py-3 font-semibold">Remaining Balance</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold text-right">Action</th>
+                <th className="px-5 py-3.5 font-bold">Transaction ID</th>
+                <th className="px-5 py-3.5 font-bold">Merchant ID</th>
+                <th className="px-5 py-3.5 font-bold">Customer (Masked)</th>
+                <th className="px-5 py-3.5 font-bold">Amount</th>
+                <th className="px-5 py-3.5 font-bold">Refunded</th>
+                <th className="px-5 py-3.5 font-bold">Method</th>
+                <th className="px-5 py-3.5 font-bold">Status</th>
+                <th className="px-5 py-3.5 font-bold text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800/60 text-gray-300">
+            <tbody className="divide-y divide-white/[0.04] text-gray-300">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
-                    No transactions matching query.
+                  <td colSpan={8} className="px-5 py-10 text-center text-gray-500">
+                    No transactions found.
                   </td>
                 </tr>
               ) : (
                 filtered.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-800/30 transition-colors">
-                    <td className="px-4 py-3 font-mono font-medium text-emerald-400">{t.id}</td>
-                    <td className="px-4 py-3 font-mono text-gray-400">{t.merchant_id}</td>
-                    <td className="px-4 py-3">
-                      <div>
-                        <span className="font-mono text-gray-200">{t.customer_id || 'N/A'}</span>
-                        <div className="text-[10px] text-gray-500">{t.customer_email || 'redacted'}</div>
+                  <tr key={t.id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="px-5 py-3.5 font-mono font-bold text-white">{t.id}</td>
+                    <td className="px-5 py-3.5 font-mono text-gray-300">{t.merchant_id}</td>
+                    <td className="px-5 py-3.5 font-mono text-gray-400">
+                      <div className="space-y-0.5">
+                        <span className="text-gray-200 block">{t.customer_id || 'cust_***4102'}</span>
+                        <span className="text-[10px] text-gray-500 block">{t.customer_email || '***@masked.com'}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 font-medium text-gray-300">{t.payment_method}</td>
-                    <td className="px-4 py-3 font-bold text-white">₹{t.amount.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-amber-400 font-mono">₹{t.refunded_amount.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-emerald-400 font-mono font-bold">₹{t.eligible_refund_balance.toLocaleString()}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        t.status === 'SETTLED'
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          : t.status === 'REFUNDED'
-                          ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
-                          : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                      }`}>
+                    <td className="px-5 py-3.5 font-mono font-bold text-white">
+                      ₹{t.amount.toLocaleString('en-IN')}
+                    </td>
+                    <td className="px-5 py-3.5 font-mono font-semibold text-emerald-400">
+                      ₹{t.refunded_amount.toLocaleString('en-IN')}
+                    </td>
+                    <td className="px-5 py-3.5 font-mono text-gray-300">{t.payment_method}</td>
+                    <td className="px-5 py-3.5">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                         {t.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      {t.eligible_refund_balance > 0 ? (
-                        <button
-                          onClick={() => onFileDispute(t)}
-                          className="px-2.5 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium cursor-pointer"
-                        >
-                          Dispute
-                        </button>
-                      ) : (
-                        <span className="text-[11px] text-gray-500 italic">Fully Refunded</span>
-                      )}
+                    <td className="px-5 py-3.5 text-right">
+                      <button
+                        onClick={() => onFileDispute(t)}
+                        className="px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-emerald-500/20 text-gray-200 hover:text-emerald-300 text-xs font-semibold border border-white/[0.08] hover:border-emerald-500/30 transition-all cursor-pointer inline-flex items-center space-x-1"
+                      >
+                        <FilePlus className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>File Claim</span>
+                      </button>
                     </td>
                   </tr>
                 ))

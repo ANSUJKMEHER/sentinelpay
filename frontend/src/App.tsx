@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { api } from './api';
+import { AntigravityDock } from './components/AntigravityDock';
 import { ApprovalQueueTab } from './components/ApprovalQueueTab';
 import { AuditLedgerTab } from './components/AuditLedgerTab';
 import { DisputesTab } from './components/DisputesTab';
-import { Navbar } from './components/Navbar';
 import { OverviewTab } from './components/OverviewTab';
 import { PolicyRulesTab } from './components/PolicyRulesTab';
 import { SecurityTab } from './components/SecurityTab';
+import { SidebarDock } from './components/SidebarDock';
+import { TopHeader } from './components/TopHeader';
 import { TransactionsTab } from './components/TransactionsTab';
 import {
   ApprovalItem,
@@ -60,7 +62,6 @@ export function App() {
   };
 
   useEffect(() => {
-    // Initial login as Ops Analyst
     api.login('ops_analyst').then(() => {
       loadData();
     });
@@ -130,69 +131,106 @@ export function App() {
     }
   };
 
+  const pendingApprovalsCount = approvals.filter((a) => a.status === 'PENDING').length;
+
   return (
-    <div className="min-h-screen bg-[#0B0F17] flex flex-col font-sans">
-      <Navbar
+    <div className="min-h-screen bg-[#07080b] flex flex-row font-sans text-gray-100 ambient-mesh relative selection:bg-emerald-500/30 selection:text-emerald-300">
+      {/* 1. Left Vertical Slim Icon Dock (Inspired by Phenomenon Studio Image 1) */}
+      <SidebarDock
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        currentRole={currentRole}
-        onPersonaChange={handlePersonaChange}
+        pendingApprovalsCount={pendingApprovalsCount}
         systemHealthy={systemHealthy}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8">
-        {loading ? (
-          <div className="py-20 text-center text-gray-500 text-xs">
-            Connecting to SentinelPay Governed FinTech Node...
-          </div>
-        ) : (
-          <>
-            {activeTab === 'overview' && (
-              <OverviewTab stats={stats} onNavigate={setActiveTab} onRunQuickDemo={handleRunQuickDemo} />
-            )}
-            {activeTab === 'disputes' && (
-              <DisputesTab
-                disputes={disputes}
-                transactions={transactions}
-                onTriggerInvestigation={handleTriggerInvestigation}
-                onCreateDispute={handleCreateDispute}
-                onRefresh={loadData}
-              />
-            )}
-            {activeTab === 'approvals' && (
-              <ApprovalQueueTab
-                approvals={approvals}
-                currentRole={currentRole}
-                onResolveApproval={handleResolveApproval}
-                onRefresh={loadData}
-              />
-            )}
-            {activeTab === 'transactions' && (
-              <TransactionsTab
-                transactions={transactions}
-                onFileDispute={(tx) => {
-                  setActiveTab('disputes');
-                }}
-                onRefresh={loadData}
-              />
-            )}
-            {activeTab === 'audit' && (
-              <AuditLedgerTab
-                logs={auditLogs}
-                isChainIntact={isChainIntact}
-                onVerifyChain={handleVerifyChain}
-                onRefresh={loadData}
-              />
-            )}
-            {activeTab === 'policy' && <PolicyRulesTab rules={policyRules} onRefresh={loadData} />}
-            {activeTab === 'security' && <SecurityTab />}
-          </>
-        )}
-      </main>
+      {/* 2. Main Content Canvas */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top Header Bar */}
+        <TopHeader
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          currentRole={currentRole}
+          onPersonaChange={handlePersonaChange}
+          systemHealthy={systemHealthy}
+          onRunQuickDemo={handleRunQuickDemo}
+          onRefresh={loadData}
+          disputesCount={disputes.length}
+          approvalsCount={pendingApprovalsCount}
+          txCount={transactions.length}
+        />
 
-      <footer className="border-t border-gray-800/80 bg-gray-950 py-4 text-center text-[11px] text-gray-500">
-        <p>SentinelPay &copy; 2026 &bull; Enterprise-Grade Governed Agentic FinTech Platform &bull; Fail-Closed Policy Engine &bull; Independent MCP Gateway</p>
-      </footer>
+        {/* Dynamic Body */}
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8">
+          {loading ? (
+            <div className="py-28 text-center space-y-3">
+              <div className="w-10 h-10 border-2 border-emerald-500/20 border-t-emerald-400 rounded-full animate-spin mx-auto" />
+              <p className="text-xs font-mono text-gray-400 tracking-wider uppercase">
+                Initializing SentinelPay Governed FinTech Node...
+              </p>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'overview' && (
+                <OverviewTab
+                  stats={stats}
+                  disputes={disputes}
+                  transactions={transactions}
+                  onNavigate={setActiveTab}
+                  onRunQuickDemo={handleRunQuickDemo}
+                />
+              )}
+              {activeTab === 'disputes' && (
+                <DisputesTab
+                  disputes={disputes}
+                  transactions={transactions}
+                  onTriggerInvestigation={handleTriggerInvestigation}
+                  onCreateDispute={handleCreateDispute}
+                  onRefresh={loadData}
+                />
+              )}
+              {activeTab === 'approvals' && (
+                <ApprovalQueueTab
+                  approvals={approvals}
+                  currentRole={currentRole}
+                  onResolveApproval={handleResolveApproval}
+                  onRefresh={loadData}
+                />
+              )}
+              {activeTab === 'transactions' && (
+                <TransactionsTab
+                  transactions={transactions}
+                  onFileDispute={() => {
+                    setActiveTab('disputes');
+                  }}
+                  onRefresh={loadData}
+                />
+              )}
+              {activeTab === 'audit' && (
+                <AuditLedgerTab
+                  logs={auditLogs}
+                  isChainIntact={isChainIntact}
+                  onVerifyChain={handleVerifyChain}
+                  onRefresh={loadData}
+                />
+              )}
+              {activeTab === 'policy' && <PolicyRulesTab rules={policyRules} onRefresh={loadData} />}
+              {activeTab === 'security' && <SecurityTab />}
+            </>
+          )}
+        </main>
+
+        {/* Minimal Bottom Brand Line */}
+        <footer className="py-4 text-center text-[10px] font-mono text-gray-600 border-t border-white/[0.04]">
+          SentinelPay &bull; ISO-20022 Governed Multi-Agent FinTech Architecture &bull; Fail-Closed Boundary &bull; Advisory Lock Integrity
+        </footer>
+      </div>
+
+      {/* 3. Antigravity-Style Floating Command Dock (Inspired by Image 2) */}
+      <AntigravityDock
+        onRunQuickDemo={handleRunQuickDemo}
+        onNavigate={setActiveTab}
+        onVerifyChain={handleVerifyChain}
+      />
     </div>
   );
 }
