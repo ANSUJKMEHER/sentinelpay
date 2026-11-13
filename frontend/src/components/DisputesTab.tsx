@@ -103,25 +103,25 @@ export const DisputesTab: React.FC<DisputesTabProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2">
-            <h2 className="text-xl font-extrabold text-white tracking-tight font-mono">
-              DISPUTES & CLAIMS ENGINE
+            <h2 className="text-xl font-bold text-zinc-100 tracking-tight font-sans">
+              Disputes & Claims Engine
             </h2>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-white/[0.04] text-zinc-400 border border-white/[0.06]">
               {disputes.length} REGISTERED
             </span>
           </div>
-          <p className="text-xs text-gray-400 mt-0.5">
-            Decoupled Multi-Agent Lifecycle &bull; LangGraph Intake &bull; Heuristic Homoglyph Scrubber &bull; Pure-Python Boundary
+          <p className="text-xs text-zinc-400 mt-0.5 font-normal">
+            Decoupled multi-agent lifecycle &bull; LangGraph intake &bull; Heuristic homoglyph scrubber &bull; Pure-Python boundary
           </p>
         </div>
 
-        <div className="flex items-center space-x-2.5">
+        <div className="flex items-center space-x-2">
           {/* View Mode Toggle */}
-          <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-1 flex items-center space-x-1">
+          <div className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-0.5 flex items-center space-x-0.5">
             <button
               onClick={() => setViewMode('cards')}
-              className={`p-1.5 rounded-lg text-xs transition-all ${
-                viewMode === 'cards' ? 'bg-white/[0.1] text-white shadow-sm' : 'text-gray-400 hover:text-white'
+              className={`p-1.5 rounded text-xs transition-colors ${
+                viewMode === 'cards' ? 'bg-white/[0.1] text-white' : 'text-zinc-500 hover:text-white'
               }`}
               title="Grid Card View"
             >
@@ -129,8 +129,8 @@ export const DisputesTab: React.FC<DisputesTabProps> = ({
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-lg text-xs transition-all ${
-                viewMode === 'table' ? 'bg-white/[0.1] text-white shadow-sm' : 'text-gray-400 hover:text-white'
+              className={`p-1.5 rounded text-xs transition-colors ${
+                viewMode === 'table' ? 'bg-white/[0.1] text-white' : 'text-zinc-500 hover:text-white'
               }`}
               title="Table View"
             >
@@ -140,7 +140,7 @@ export const DisputesTab: React.FC<DisputesTabProps> = ({
 
           <button
             onClick={onRefresh}
-            className="p-2 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] text-gray-300 hover:text-white text-xs font-medium cursor-pointer transition-all"
+            className="p-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] text-zinc-400 hover:text-white text-xs cursor-pointer transition-colors"
             title="Refresh disputes"
           >
             <RotateCw className="w-3.5 h-3.5" />
@@ -148,53 +148,53 @@ export const DisputesTab: React.FC<DisputesTabProps> = ({
 
           <button
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-bold shadow-lg shadow-emerald-500/20 cursor-pointer transition-all"
+            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-white text-black hover:bg-zinc-200 text-xs font-medium cursor-pointer transition-colors shadow-sm"
           >
-            <FilePlus className="w-4 h-4" />
+            <FilePlus className="w-3.5 h-3.5" />
             <span>File New Dispute</span>
           </button>
         </div>
       </div>
 
       {/* Filter Chips Bar */}
-      <div className="flex items-center space-x-2 text-xs">
-        <span className="text-gray-500 text-[11px] uppercase font-mono mr-1">Filter:</span>
+      <div className="flex items-center space-x-1.5 text-xs">
+        <span className="text-zinc-500 text-[11px] uppercase font-mono mr-1 tracking-wider">Filter:</span>
         <button
           onClick={() => setFilterType('all')}
-          className={`px-3 py-1 rounded-xl font-medium transition-all ${
+          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
             filterType === 'all'
-              ? 'bg-white/[0.12] text-white border border-white/[0.15]'
-              : 'text-gray-400 hover:text-gray-200 bg-white/[0.03]'
+              ? 'bg-white/[0.1] text-white border border-white/[0.1]'
+              : 'text-zinc-400 hover:text-zinc-200 bg-white/[0.02]'
           }`}
         >
           All ({disputes.length})
         </button>
         <button
           onClick={() => setFilterType('auto')}
-          className={`px-3 py-1 rounded-xl font-medium transition-all ${
+          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
             filterType === 'auto'
-              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-              : 'text-gray-400 hover:text-gray-200 bg-white/[0.03]'
+              ? 'bg-[#3fb950]/15 text-[#3fb950] border border-[#3fb950]/25'
+              : 'text-zinc-400 hover:text-zinc-200 bg-white/[0.02]'
           }`}
         >
           Auto-Approved ({disputes.filter((d) => d.policy_verdict === 'AUTO_APPROVED').length})
         </button>
         <button
           onClick={() => setFilterType('hil')}
-          className={`px-3 py-1 rounded-xl font-medium transition-all ${
+          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
             filterType === 'hil'
-              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-              : 'text-gray-400 hover:text-gray-200 bg-white/[0.03]'
+              ? 'bg-[#d29922]/15 text-[#d29922] border border-[#d29922]/25'
+              : 'text-zinc-400 hover:text-zinc-200 bg-white/[0.02]'
           }`}
         >
           HIL Queue ({disputes.filter((d) => d.human_required).length})
         </button>
         <button
           onClick={() => setFilterType('intake')}
-          className={`px-3 py-1 rounded-xl font-medium transition-all ${
+          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
             filterType === 'intake'
-              ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
-              : 'text-gray-400 hover:text-gray-200 bg-white/[0.03]'
+              ? 'bg-white/[0.1] text-white border border-white/[0.1]'
+              : 'text-zinc-400 hover:text-zinc-200 bg-white/[0.02]'
           }`}
         >
           Intake ({disputes.filter((d) => d.status === 'INTAKE').length})
@@ -203,11 +203,11 @@ export const DisputesTab: React.FC<DisputesTabProps> = ({
 
       {/* Main View: Cards Grid or Table */}
       {viewMode === 'cards' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {filteredDisputes.length === 0 ? (
-            <div className="col-span-full glass-panel rounded-3xl p-12 text-center space-y-3">
-              <Receipt className="w-8 h-8 text-gray-500 mx-auto" />
-              <p className="text-xs text-gray-400">No disputes match the selected filter criteria.</p>
+            <div className="col-span-full sleek-panel rounded-xl p-12 text-center space-y-3">
+              <Receipt className="w-8 h-8 text-zinc-600 mx-auto" />
+              <p className="text-xs text-zinc-500">No disputes match the selected filter criteria.</p>
             </div>
           ) : (
             filteredDisputes.map((d) => {
@@ -217,27 +217,27 @@ export const DisputesTab: React.FC<DisputesTabProps> = ({
               return (
                 <div
                   key={d.id}
-                  className="glass-card rounded-2xl p-5 space-y-4 relative flex flex-col justify-between group"
+                  className="bg-[#0c0d10] border border-white/[0.04] hover:border-white/[0.08] rounded-xl p-4.5 space-y-3 relative flex flex-col justify-between transition-colors group"
                 >
                   <div>
-                    {/* Header: ID, Badge, Timestamp */}
+                    {/* Header: ID, Badge */}
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-mono text-xs font-bold text-white tracking-wider">
+                      <span className="font-mono text-xs font-semibold text-zinc-200 tracking-tight">
                         {d.id}
                       </span>
                       <div>
                         {isAuto && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-[#3fb950]/10 text-[#3fb950] border border-[#3fb950]/20">
                             AUTO_APPROVED
                           </span>
                         )}
                         {isHIL && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-[#d29922]/10 text-[#d29922] border border-[#d29922]/20">
                             HUMAN_REQ
                           </span>
                         )}
                         {!isAuto && !isHIL && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-white/[0.04] text-zinc-400 border border-white/[0.06]">
                             {d.status}
                           </span>
                         )}
@@ -246,60 +246,60 @@ export const DisputesTab: React.FC<DisputesTabProps> = ({
 
                     {/* Dispute Type & Amount */}
                     <div className="flex items-baseline justify-between py-2 border-b border-white/[0.04]">
-                      <span className="text-xs text-gray-300 font-medium capitalize">
+                      <span className="text-xs text-zinc-300 font-medium capitalize">
                         {d.dispute_type.replace(/_/g, ' ')}
                       </span>
-                      <span className="text-lg font-black text-white font-mono">
+                      <span className="text-base font-semibold text-zinc-100 font-mono tabular-nums">
                         ₹{d.disputed_amount.toLocaleString('en-IN')}
                       </span>
                     </div>
 
                     {/* Metadata Grid */}
-                    <div className="grid grid-cols-2 gap-2 text-[11px] py-3 text-gray-400">
+                    <div className="grid grid-cols-2 gap-2 text-[11px] py-2.5 text-zinc-400">
                       <div>
-                        <span className="text-[10px] uppercase font-mono block text-gray-500">Transaction</span>
-                        <span className="font-mono text-gray-300">{d.transaction_id}</span>
+                        <span className="text-[10px] uppercase font-mono block text-zinc-500 tracking-wider">Transaction</span>
+                        <span className="font-mono text-zinc-300">{d.transaction_id}</span>
                       </div>
                       <div>
-                        <span className="text-[10px] uppercase font-mono block text-gray-500">Merchant</span>
-                        <span className="text-gray-300 truncate block">{d.merchant_id}</span>
+                        <span className="text-[10px] uppercase font-mono block text-zinc-500 tracking-wider">Merchant</span>
+                        <span className="text-zinc-300 truncate block">{d.merchant_id}</span>
                       </div>
                       <div>
-                        <span className="text-[10px] uppercase font-mono block text-gray-500">AI Confidence</span>
+                        <span className="text-[10px] uppercase font-mono block text-zinc-500 tracking-wider">AI Confidence</span>
                         <div className="flex items-center space-x-1.5 mt-0.5">
-                          <div className="w-16 h-1 bg-gray-800 rounded-full overflow-hidden">
+                          <div className="w-14 h-1 bg-zinc-800 rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-emerald-500 rounded-full"
+                              className="h-full bg-zinc-400 rounded-full"
                               style={{ width: `${(d.ai_confidence || 0.95) * 100}%` }}
                             />
                           </div>
-                          <span className="font-mono text-[10px] text-gray-300">
+                          <span className="font-mono text-[10px] text-zinc-400 tabular-nums">
                             {((d.ai_confidence || 0.95) * 100).toFixed(0)}%
                           </span>
                         </div>
                       </div>
                       <div>
-                        <span className="text-[10px] uppercase font-mono block text-gray-500">Current Stage</span>
-                        <span className="font-mono text-[10px] text-emerald-400 font-semibold">{d.current_stage}</span>
+                        <span className="text-[10px] uppercase font-mono block text-zinc-500 tracking-wider">Current Stage</span>
+                        <span className="font-mono text-[10px] text-zinc-300 font-medium">{d.current_stage}</span>
                       </div>
                     </div>
 
                     {/* AI Recommendation Pill */}
                     {d.ai_recommendation && (
-                      <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-[11px] text-indigo-300 flex items-start space-x-2">
-                        <Bot className="w-3.5 h-3.5 text-indigo-400 mt-0.5 shrink-0" />
+                      <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] text-[11px] text-zinc-400 flex items-start space-x-2">
+                        <Bot className="w-3.5 h-3.5 text-zinc-400 mt-0.5 shrink-0" />
                         <span className="line-clamp-2">{d.ai_recommendation}</span>
                       </div>
                     )}
                   </div>
 
                   {/* Card Bottom Actions */}
-                  <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between">
+                  <div className="pt-3 hairline-t flex items-center justify-between">
                     <button
                       onClick={() => setSelectedDispute(d)}
-                      className="px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-gray-200 text-xs font-semibold border border-white/[0.08] transition-all flex items-center space-x-1 cursor-pointer"
+                      className="px-2.5 py-1 rounded-md bg-white/[0.03] hover:bg-white/[0.06] text-zinc-300 text-xs font-medium border border-white/[0.06] transition-colors flex items-center space-x-1 cursor-pointer"
                     >
-                      <Eye className="w-3.5 h-3.5" />
+                      <Eye className="w-3.5 h-3.5 text-zinc-400" />
                       <span>Inspect Context</span>
                     </button>
 
@@ -307,7 +307,7 @@ export const DisputesTab: React.FC<DisputesTabProps> = ({
                       <button
                         onClick={() => handleRunInvestigation(d.id)}
                         disabled={investigatingId === d.id}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold shadow-glow-emerald transition-all flex items-center space-x-1 cursor-pointer disabled:opacity-50"
+                        className="px-3 py-1 rounded-md bg-white text-black hover:bg-zinc-200 text-xs font-medium transition-colors flex items-center space-x-1 cursor-pointer disabled:opacity-50"
                       >
                         <Play className="w-3 h-3 fill-black" />
                         <span>{investigatingId === d.id ? 'Running...' : 'Run Agents'}</span>
@@ -321,58 +321,58 @@ export const DisputesTab: React.FC<DisputesTabProps> = ({
         </div>
       ) : (
         /* Elevated Table View */
-        <div className="glass-panel rounded-3xl overflow-hidden shadow-2xl border border-white/[0.08]">
+        <div className="sleek-panel rounded-xl overflow-hidden border border-white/[0.05]">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-[#0e1017]/90 text-gray-400 border-b border-white/[0.06] font-mono text-[11px] uppercase">
+              <thead className="bg-[#0e1015] text-zinc-400 border-b border-white/[0.04] font-mono text-[11px] uppercase tracking-wider">
                 <tr>
-                  <th className="px-5 py-3.5 font-bold">Dispute ID</th>
-                  <th className="px-5 py-3.5 font-bold">Transaction</th>
-                  <th className="px-5 py-3.5 font-bold">Type</th>
-                  <th className="px-5 py-3.5 font-bold">Amount</th>
-                  <th className="px-5 py-3.5 font-bold">AI Rec</th>
-                  <th className="px-5 py-3.5 font-bold">Policy Verdict</th>
-                  <th className="px-5 py-3.5 font-bold">Stage</th>
-                  <th className="px-5 py-3.5 font-bold text-right">Actions</th>
+                  <th className="px-4 py-3 font-medium">Dispute ID</th>
+                  <th className="px-4 py-3 font-medium">Transaction</th>
+                  <th className="px-4 py-3 font-medium">Type</th>
+                  <th className="px-4 py-3 font-medium">Amount</th>
+                  <th className="px-4 py-3 font-medium">AI Rec</th>
+                  <th className="px-4 py-3 font-medium">Policy Verdict</th>
+                  <th className="px-4 py-3 font-medium">Stage</th>
+                  <th className="px-4 py-3 font-medium text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.04] text-gray-300">
+              <tbody className="divide-y divide-white/[0.03] text-zinc-300">
                 {filteredDisputes.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-5 py-10 text-center text-gray-500">
+                    <td colSpan={8} className="px-4 py-10 text-center text-zinc-500">
                       No disputes match this criteria.
                     </td>
                   </tr>
                 ) : (
                   filteredDisputes.map((d) => (
                     <tr key={d.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="px-5 py-3.5 font-mono font-bold text-white">{d.id}</td>
-                      <td className="px-5 py-3.5 font-mono text-gray-400">{d.transaction_id}</td>
-                      <td className="px-5 py-3.5 capitalize text-gray-300">{d.dispute_type.replace(/_/g, ' ')}</td>
-                      <td className="px-5 py-3.5 font-bold text-white font-mono">
+                      <td className="px-4 py-3 font-mono font-medium text-zinc-200">{d.id}</td>
+                      <td className="px-4 py-3 font-mono text-zinc-400">{d.transaction_id}</td>
+                      <td className="px-4 py-3 capitalize text-zinc-300">{d.dispute_type.replace(/_/g, ' ')}</td>
+                      <td className="px-4 py-3 font-semibold text-zinc-100 font-mono tabular-nums">
                         ₹{d.disputed_amount.toLocaleString('en-IN')}
                       </td>
-                      <td className="px-5 py-3.5 text-indigo-400 font-mono text-[11px]">
+                      <td className="px-4 py-3 text-zinc-400 font-mono text-[11px]">
                         {d.ai_recommendation ? d.ai_recommendation.slice(0, 24) + '...' : 'Pending'}
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-4 py-3">
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                          className={`px-2 py-0.5 rounded text-[10px] font-mono font-medium ${
                             d.policy_verdict === 'AUTO_APPROVED'
-                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                              ? 'bg-[#3fb950]/10 text-[#3fb950] border border-[#3fb950]/20'
                               : d.policy_verdict === 'REQUIRES_HUMAN_APPROVAL'
-                              ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                              : 'bg-white/[0.06] text-gray-400'
+                              ? 'bg-[#d29922]/10 text-[#d29922] border border-[#d29922]/20'
+                              : 'bg-white/[0.04] text-zinc-400 border border-white/[0.06]'
                           }`}
                         >
                           {d.policy_verdict || 'NOT_EVALUATED'}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 font-mono text-gray-300">{d.current_stage}</td>
-                      <td className="px-5 py-3.5 text-right space-x-2">
+                      <td className="px-4 py-3 font-mono text-zinc-400">{d.current_stage}</td>
+                      <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => setSelectedDispute(d)}
-                          className="px-2.5 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-gray-200 text-xs font-semibold cursor-pointer"
+                          className="px-2.5 py-1 rounded bg-white/[0.04] hover:bg-white/[0.08] text-zinc-300 text-xs font-medium cursor-pointer transition-colors"
                         >
                           Inspect
                         </button>
@@ -388,43 +388,43 @@ export const DisputesTab: React.FC<DisputesTabProps> = ({
 
       {/* Live Agent Execution Timeline Drawer */}
       {liveTimeline.length > 0 && (
-        <div className="glass-panel rounded-3xl p-6 space-y-4 shadow-2xl border border-emerald-500/30 bg-[#0c121d]/95">
+        <div className="sleek-panel rounded-xl p-5 space-y-4 border border-white/[0.06]">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2.5">
-              <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                <Bot className="w-5 h-5 animate-pulse" />
+              <div className="p-1.5 rounded-md bg-white/[0.04] text-zinc-300 border border-white/[0.06]">
+                <Bot className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white font-mono uppercase">
+                <h3 className="text-xs font-semibold text-zinc-200 font-mono uppercase tracking-wider">
                   LangGraph Multi-Agent Execution Trace
                 </h3>
-                <p className="text-[11px] text-gray-400">Deterministic checkpointer persistence & state handoff</p>
+                <p className="text-[11px] text-zinc-500">Deterministic checkpointer persistence & state handoff</p>
               </div>
             </div>
             <button
               onClick={() => setLiveTimeline([])}
-              className="text-xs text-gray-400 hover:text-white cursor-pointer px-3 py-1 rounded-lg bg-white/[0.04]"
+              className="text-xs text-zinc-400 hover:text-white cursor-pointer px-2.5 py-1 rounded bg-white/[0.04] transition-colors"
             >
               Dismiss
             </button>
           </div>
 
-          <div className="space-y-3 relative before:absolute before:left-4 before:top-2 before:bottom-2 before:w-0.5 before:bg-white/[0.08]">
+          <div className="space-y-2.5 relative before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-[1px] before:bg-white/[0.06]">
             {liveTimeline.map((item, index) => (
-              <div key={index} className="flex items-start space-x-4 relative">
-                <div className="w-8 h-8 rounded-full bg-[#111624] border border-emerald-500/40 flex items-center justify-center shrink-0 text-emerald-400 text-xs font-mono font-bold z-10 shadow-sm">
+              <div key={index} className="flex items-start space-x-3.5 relative">
+                <div className="w-7 h-7 rounded-full bg-[#111317] border border-white/[0.08] flex items-center justify-center shrink-0 text-zinc-300 text-[11px] font-mono font-medium z-10">
                   {index + 1}
                 </div>
-                <div className="flex-1 bg-[#121622]/90 rounded-2xl p-3.5 border border-white/[0.06] space-y-1">
+                <div className="flex-1 bg-[#111317]/80 rounded-lg p-3 border border-white/[0.04] space-y-1">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-emerald-300 font-mono text-[11px] uppercase tracking-wider">
+                    <span className="font-medium text-zinc-200 font-mono text-[11px] uppercase tracking-wider">
                       {item.stage} &bull; {item.agent}
                     </span>
-                    <span className="font-mono text-gray-500 text-[10px]">
+                    <span className="font-mono text-zinc-500 text-[10px]">
                       {new Date(item.timestamp).toLocaleTimeString()}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-300">{item.message}</p>
+                  <p className="text-xs text-zinc-400">{item.message}</p>
                 </div>
               </div>
             ))}
@@ -434,90 +434,90 @@ export const DisputesTab: React.FC<DisputesTabProps> = ({
 
       {/* Dispute Details Modal */}
       {selectedDispute && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="glass-panel bg-[#0d1017]/95 border border-white/[0.12] rounded-3xl max-w-2xl w-full p-6 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0c0d10] border border-white/[0.08] rounded-xl max-w-2xl w-full p-6 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-white/[0.04] pb-3.5">
               <div>
-                <span className="text-xs font-mono text-emerald-400 font-bold">{selectedDispute.id}</span>
-                <h3 className="text-lg font-black text-white">Dispute Context & Multi-Agent Findings</h3>
+                <span className="text-xs font-mono text-zinc-400 font-medium">{selectedDispute.id}</span>
+                <h3 className="text-base font-semibold text-zinc-100">Dispute Context & Multi-Agent Findings</h3>
               </div>
               <button
                 onClick={() => setSelectedDispute(null)}
-                className="w-8 h-8 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-gray-400 hover:text-white flex items-center justify-center cursor-pointer font-bold"
+                className="w-7 h-7 rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer text-sm"
               >
                 &times;
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="space-y-1 bg-black/40 p-3.5 rounded-2xl border border-white/[0.04]">
-                <span className="text-[10px] font-mono text-gray-400 uppercase">Transaction ID</span>
-                <p className="font-mono text-white font-semibold">{selectedDispute.transaction_id}</p>
+            <div className="grid grid-cols-2 gap-2.5 text-xs">
+              <div className="space-y-1 bg-[#111317]/60 p-3 rounded-lg border border-white/[0.04]">
+                <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Transaction ID</span>
+                <p className="font-mono text-zinc-200 font-medium">{selectedDispute.transaction_id}</p>
               </div>
-              <div className="space-y-1 bg-black/40 p-3.5 rounded-2xl border border-white/[0.04]">
-                <span className="text-[10px] font-mono text-gray-400 uppercase">Disputed Amount</span>
-                <p className="text-emerald-400 font-mono font-black text-base">
+              <div className="space-y-1 bg-[#111317]/60 p-3 rounded-lg border border-white/[0.04]">
+                <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Disputed Amount</span>
+                <p className="text-zinc-100 font-mono font-semibold text-sm tabular-nums">
                   ₹{selectedDispute.disputed_amount.toLocaleString('en-IN')}
                 </p>
               </div>
-              <div className="space-y-1 bg-black/40 p-3.5 rounded-2xl border border-white/[0.04]">
-                <span className="text-[10px] font-mono text-gray-400 uppercase">AI Recommendation (Probabilistic)</span>
-                <p className="font-semibold text-indigo-400 font-mono">
+              <div className="space-y-1 bg-[#111317]/60 p-3 rounded-lg border border-white/[0.04]">
+                <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">AI Recommendation (Probabilistic)</span>
+                <p className="font-medium text-zinc-300 font-mono text-xs">
                   {selectedDispute.ai_recommendation || 'Pending Evaluation'}
                 </p>
               </div>
-              <div className="space-y-1 bg-black/40 p-3.5 rounded-2xl border border-white/[0.04]">
-                <span className="text-[10px] font-mono text-gray-400 uppercase">Policy Verdict (Deterministic)</span>
-                <p className="font-semibold text-emerald-400 font-mono">
+              <div className="space-y-1 bg-[#111317]/60 p-3 rounded-lg border border-white/[0.04]">
+                <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Policy Verdict (Deterministic)</span>
+                <p className="font-medium text-zinc-200 font-mono text-xs">
                   {selectedDispute.policy_verdict || 'Pending Gate'}
                 </p>
               </div>
             </div>
 
-            <div className="space-y-2 text-xs">
-              <span className="font-mono text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+            <div className="space-y-1.5 text-xs">
+              <span className="font-mono text-[10px] uppercase font-medium text-zinc-500 tracking-wider">
                 Policy Engine Reasoning & Citations:
               </span>
-              <div className="bg-black/60 p-4 rounded-2xl border border-white/[0.06] text-gray-200 font-mono text-xs leading-relaxed">
+              <div className="bg-[#111317] p-3.5 rounded-lg border border-white/[0.04] text-zinc-300 font-mono text-xs leading-relaxed">
                 {selectedDispute.policy_reason || 'No deterministic policy reason recorded.'}
               </div>
             </div>
 
             {/* Evidence Security & OCR Verification Card */}
-            <div className="space-y-2 text-xs bg-black/40 p-4 rounded-2xl border border-white/[0.06]">
+            <div className="space-y-2 text-xs bg-[#111317]/60 p-3.5 rounded-lg border border-white/[0.04]">
               <div className="flex items-center justify-between">
-                <span className="font-mono text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                <span className="font-mono text-[10px] uppercase font-medium text-zinc-500 tracking-wider">
                   Evidentiary OCR & Document Integrity:
                 </span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-normal bg-white/[0.04] text-zinc-400 border border-white/[0.06]">
                   Untrusted Input Tagged
                 </span>
               </div>
-              <p className="text-xs text-gray-300">
+              <p className="text-xs text-zinc-400">
                 Uploaded PDFs, receipts, and OCR extractions are treated as untrusted inputs. Heuristic prompt-injection screening and Unicode confusable canonicalization are applied before policy evaluation.
               </p>
               {selectedDispute.policy_reason &&
                 (selectedDispute.policy_reason.includes('adversarial') ||
                   selectedDispute.policy_reason.includes('injection')) && (
-                  <div className="p-3 rounded-xl bg-red-950/40 border border-red-500/40 text-red-300 text-xs font-mono">
+                  <div className="p-2.5 rounded-md bg-[#f85149]/10 border border-[#f85149]/20 text-[#f85149] text-xs font-mono">
                     &bull; Warning: Adversarial injection payload detected in evidentiary text. Document authenticity score penalized.
                   </div>
                 )}
             </div>
 
             {selectedDispute.final_resolution && (
-              <div className="space-y-1 text-xs bg-emerald-950/30 p-4 rounded-2xl border border-emerald-500/30">
-                <span className="font-mono text-[10px] font-bold text-emerald-400 uppercase">
+              <div className="space-y-1 text-xs bg-white/[0.02] p-3.5 rounded-lg border border-white/[0.04]">
+                <span className="font-mono text-[10px] font-medium text-zinc-500 uppercase tracking-wider">
                   Execution / Final Settlement Resolution:
                 </span>
-                <p className="text-white font-mono font-semibold">{selectedDispute.final_resolution}</p>
+                <p className="text-zinc-200 font-mono font-medium">{selectedDispute.final_resolution}</p>
               </div>
             )}
 
             <div className="flex justify-end pt-2">
               <button
                 onClick={() => setSelectedDispute(null)}
-                className="px-5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-white text-xs font-bold cursor-pointer transition-all"
+                className="px-4 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-zinc-200 text-xs font-medium cursor-pointer transition-colors"
               >
                 Close Inspector
               </button>
@@ -528,28 +528,28 @@ export const DisputesTab: React.FC<DisputesTabProps> = ({
 
       {/* File New Dispute Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <form
             onSubmit={handleCreateSubmit}
-            className="glass-panel bg-[#0d1017]/95 border border-white/[0.12] rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl"
+            className="bg-[#0c0d10] border border-white/[0.08] rounded-xl max-w-lg w-full p-6 space-y-4 shadow-2xl"
           >
-            <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
+            <div className="flex items-center justify-between border-b border-white/[0.04] pb-3">
               <div>
-                <h3 className="text-md font-black text-white font-mono uppercase">File FinTech Dispute</h3>
-                <p className="text-[11px] text-gray-400">Ingest claim into LangGraph multi-agent pipeline</p>
+                <h3 className="text-sm font-semibold text-zinc-100 font-mono uppercase tracking-wider">File FinTech Dispute</h3>
+                <p className="text-[11px] text-zinc-500">Ingest claim into LangGraph multi-agent pipeline</p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowCreateModal(false)}
-                className="w-8 h-8 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-gray-400 hover:text-white flex items-center justify-center cursor-pointer font-bold"
+                className="w-7 h-7 rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer text-sm"
               >
                 &times;
               </button>
             </div>
 
-            <div className="space-y-3.5 text-xs">
+            <div className="space-y-3 text-xs">
               <div>
-                <label className="block text-[11px] font-mono text-gray-400 uppercase mb-1">Target Transaction</label>
+                <label className="block text-[11px] font-mono text-zinc-500 uppercase tracking-wider mb-1">Target Transaction</label>
                 <select
                   value={formTxId}
                   onChange={(e) => {
@@ -557,10 +557,10 @@ export const DisputesTab: React.FC<DisputesTabProps> = ({
                     const tx = transactions.find((t) => t.id === e.target.value);
                     if (tx) setFormAmount(String(tx.amount));
                   }}
-                  className="w-full bg-black/60 border border-white/[0.08] rounded-xl p-2.5 text-white focus:outline-none focus:border-emerald-500 font-mono text-xs"
+                  className="w-full bg-[#111317] border border-white/[0.06] rounded-lg p-2 text-zinc-200 focus:outline-none focus:border-white/20 font-mono text-xs"
                 >
                   {transactions.map((t) => (
-                    <option key={t.id} value={t.id} className="bg-[#0f121a]">
+                    <option key={t.id} value={t.id} className="bg-[#111317]">
                       {t.id} &bull; ₹{t.amount} ({t.merchant_id})
                     </option>
                   ))}
@@ -568,59 +568,59 @@ export const DisputesTab: React.FC<DisputesTabProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-mono text-gray-400 uppercase mb-1">Dispute Category</label>
+                <label className="block text-[11px] font-mono text-zinc-500 uppercase tracking-wider mb-1">Dispute Category</label>
                 <select
                   value={formType}
                   onChange={(e) => setFormType(e.target.value)}
-                  className="w-full bg-black/60 border border-white/[0.08] rounded-xl p-2.5 text-white focus:outline-none focus:border-emerald-500 text-xs"
+                  className="w-full bg-[#111317] border border-white/[0.06] rounded-lg p-2 text-zinc-200 focus:outline-none focus:border-white/20 text-xs"
                 >
-                  <option value="goods_not_received" className="bg-[#0f121a]">Goods Not Received</option>
-                  <option value="unauthorized_transaction" className="bg-[#0f121a]">Unauthorized Transaction</option>
-                  <option value="duplicate_charge" className="bg-[#0f121a]">Duplicate Charge</option>
-                  <option value="defective_item" className="bg-[#0f121a]">Defective / Damaged Item</option>
-                  <option value="subscription_cancelled" className="bg-[#0f121a]">Subscription Cancelled</option>
-                  <option value="fraudulent_merchant" className="bg-[#0f121a]">Fraudulent Merchant</option>
+                  <option value="goods_not_received" className="bg-[#111317]">Goods Not Received</option>
+                  <option value="unauthorized_transaction" className="bg-[#111317]">Unauthorized Transaction</option>
+                  <option value="duplicate_charge" className="bg-[#111317]">Duplicate Charge</option>
+                  <option value="defective_item" className="bg-[#111317]">Defective / Damaged Item</option>
+                  <option value="subscription_cancelled" className="bg-[#111317]">Subscription Cancelled</option>
+                  <option value="fraudulent_merchant" className="bg-[#111317]">Fraudulent Merchant</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-[11px] font-mono text-gray-400 uppercase mb-1">Claim Amount (INR ₹)</label>
+                <label className="block text-[11px] font-mono text-zinc-500 uppercase tracking-wider mb-1">Claim Amount (INR ₹)</label>
                 <input
                   type="number"
                   step="0.01"
                   value={formAmount}
                   onChange={(e) => setFormAmount(e.target.value)}
-                  className="w-full bg-black/60 border border-white/[0.08] rounded-xl p-2.5 text-emerald-400 focus:outline-none focus:border-emerald-500 font-mono font-bold text-sm"
+                  className="w-full bg-[#111317] border border-white/[0.06] rounded-lg p-2 text-zinc-100 focus:outline-none focus:border-white/20 font-mono font-medium text-xs"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-mono text-gray-400 uppercase mb-1">Customer Claim Reason</label>
+                <label className="block text-[11px] font-mono text-zinc-500 uppercase tracking-wider mb-1">Customer Claim Reason</label>
                 <textarea
                   rows={3}
                   value={formReason}
                   onChange={(e) => setFormReason(e.target.value)}
-                  className="w-full bg-black/60 border border-white/[0.08] rounded-xl p-2.5 text-white focus:outline-none focus:border-emerald-500 text-xs"
+                  className="w-full bg-[#111317] border border-white/[0.06] rounded-lg p-2 text-zinc-200 focus:outline-none focus:border-white/20 text-xs"
                   required
                 />
-                <span className="text-[10px] text-gray-500 font-mono block mt-1">
+                <span className="text-[10px] text-zinc-500 font-mono block mt-1">
                   &bull; Scanned automatically by Prompt Injection Shield and Luhn PII Masker.
                 </span>
               </div>
             </div>
 
-            <div className="flex justify-end space-x-2 pt-3 border-t border-white/[0.06]">
+            <div className="flex justify-end space-x-2 pt-3 border-t border-white/[0.04]">
               <button
                 type="button"
                 onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 text-xs font-semibold cursor-pointer"
+                className="px-3.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 text-xs font-medium cursor-pointer transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold cursor-pointer shadow-glow-emerald transition-all"
+                className="px-4 py-1.5 rounded-lg bg-white text-black hover:bg-zinc-200 text-xs font-medium cursor-pointer transition-colors shadow-sm"
               >
                 Submit Claim
               </button>

@@ -43,18 +43,18 @@ export const SidebarDock: React.FC<SidebarDockProps> = ({
   ];
 
   return (
-    <aside className="w-14 h-screen sticky top-0 bg-[#08090c] border-r border-white/[0.07] flex flex-col justify-between items-center py-4 z-40 flex-shrink-0">
+    <aside className="w-14 h-screen sticky top-0 bg-[#08090a] border-r border-white/[0.05] flex flex-col justify-between items-center py-4 z-40 flex-shrink-0">
       {/* Brand Icon */}
       <div className="flex flex-col items-center space-y-3">
         <button
           onClick={() => setActiveTab('overview')}
           title="SentinelPay Platform"
-          className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+          className="w-8 h-8 rounded-lg bg-white/[0.06] border border-white/[0.08] flex items-center justify-center text-zinc-200 hover:bg-white/[0.1] transition-colors cursor-pointer"
         >
-          <Shield className="w-4 h-4 text-emerald-400" />
+          <Shield className="w-4 h-4 text-zinc-200" />
         </button>
 
-        <div className="w-6 h-[1px] bg-white/[0.06]" />
+        <div className="w-6 h-[1px] bg-white/[0.05]" />
 
         {/* Navigation Items */}
         <nav className="flex flex-col space-y-1">
@@ -68,22 +68,22 @@ export const SidebarDock: React.FC<SidebarDockProps> = ({
                   onClick={() => setActiveTab(item.id)}
                   className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors relative cursor-pointer ${
                     isActive
-                      ? 'bg-white/[0.1] text-white border border-white/[0.12] shadow-sm'
-                      : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.04]'
+                      ? 'bg-white/[0.1] text-white border border-white/[0.1]'
+                      : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.04]'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-emerald-400' : 'text-gray-400'}`} />
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-zinc-100' : 'text-zinc-400'}`} />
 
                   {/* Optional Counter Badge */}
                   {item.badge !== undefined && (
-                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-500 text-black text-[9px] font-bold flex items-center justify-center font-mono">
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#d29922] text-black text-[9px] font-bold flex items-center justify-center font-mono">
                       {item.badge}
                     </span>
                   )}
                 </button>
 
                 {/* Tooltip */}
-                <div className="absolute left-14 px-2 py-1 rounded bg-[#0f121a] border border-white/10 text-[11px] font-sans text-gray-200 whitespace-nowrap shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
+                <div className="absolute left-14 px-2 py-1 rounded-md bg-[#111317] border border-white/[0.06] text-[11px] font-sans text-zinc-200 whitespace-nowrap shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
                   {item.label}
                 </div>
               </div>
@@ -96,9 +96,9 @@ export const SidebarDock: React.FC<SidebarDockProps> = ({
       <div className="flex flex-col items-center">
         <div
           title={systemHealthy ? 'All Systems Healthy' : 'Alert'}
-          className="w-7 h-7 rounded-md bg-white/[0.03] border border-white/[0.06] flex items-center justify-center cursor-pointer hover:bg-white/[0.06] transition-colors"
+          className="w-7 h-7 rounded-md bg-white/[0.03] border border-white/[0.05] flex items-center justify-center cursor-pointer hover:bg-white/[0.06] transition-colors"
         >
-          <span className={`w-2 h-2 rounded-full ${systemHealthy ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+          <span className={`w-2 h-2 rounded-full ${systemHealthy ? 'bg-[#3fb950]' : 'bg-[#d29922]'}`} />
         </div>
       </div>
     </aside>

@@ -1,16 +1,11 @@
 import React from 'react';
 import {
-  AlertTriangle,
   CheckCircle2,
-  Lock,
+  ChevronDown,
   Plus,
   RefreshCw,
-  Scale,
   Shield,
-  ShieldAlert,
-  ShieldCheck,
   UserCheck,
-  Zap,
 } from 'lucide-react';
 
 interface TopHeaderProps {
@@ -45,73 +40,70 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
     { id: 'transactions', label: 'Transactions', count: txCount },
     { id: 'audit', label: 'Audit Ledger' },
     { id: 'policy', label: 'Policies' },
-    { id: 'security', label: 'Security Shield' },
+    { id: 'security', label: 'Security' },
   ];
 
   return (
-    <header className="border-b border-white/[0.07] bg-[#08090c]/90 backdrop-blur-xl sticky top-0 z-30">
+    <header className="border-b border-white/[0.05] bg-[#08090a]/95 sticky top-0 z-30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Main Header Bar (Engineered Density) */}
-        <div className="flex items-center justify-between h-16">
-          {/* Left: Node Identity */}
+        {/* Main Sleek Navigation Bar */}
+        <div className="flex items-center justify-between h-14">
+          {/* Left: Minimal Node Tag & Status */}
           <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2">
-              <span className="font-mono font-semibold text-sm tracking-tight text-white">
-                SP-NODE-01
-              </span>
-              <span className="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded text-[10px] font-mono tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>FAIL-CLOSED ARMED</span>
-              </span>
+            <span className="font-mono font-medium text-xs tracking-tight text-white">
+              SP-NODE-01
+            </span>
+            <span className="text-zinc-600 text-xs">/</span>
+            <div className="flex items-center space-x-1.5 text-[11px] font-mono text-zinc-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span>FAIL-CLOSED ACTIVE</span>
             </div>
-            <span className="text-gray-600 hidden md:inline text-xs">&bull;</span>
-            <span className="text-[11px] text-gray-400 hidden md:inline font-sans">
-              Deterministic Governance &bull; Scoped FastMCP Gateway
+            <span className="text-zinc-700 text-xs hidden md:inline">&bull;</span>
+            <span className="text-[11px] text-zinc-500 hidden md:inline">
+              FastMCP Scoped Settlement
             </span>
           </div>
 
-          {/* Right Action Stack */}
-          <div className="flex items-center space-x-2.5">
-            {/* Live Refresh Trigger */}
+          {/* Right: Persona & Subtle Action Button */}
+          <div className="flex items-center space-x-2">
             <button
               onClick={onRefresh}
               title="Refresh State"
-              className="p-1.5 rounded-lg bg-white/[0.03] hover:bg-white/[0.08] text-gray-400 hover:text-white border border-white/[0.08] transition-colors cursor-pointer"
+              className="p-1.5 rounded-md hover:bg-white/[0.04] text-zinc-400 hover:text-white transition-colors cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
 
-            {/* Persona Selector */}
-            <div className="flex items-center space-x-1.5 bg-white/[0.03] border border-white/[0.08] rounded-lg px-2.5 py-1 text-xs text-gray-300">
-              <UserCheck className="w-3.5 h-3.5 text-gray-400" />
-              <span className="text-gray-400 text-[11px] font-medium hidden sm:inline">Role:</span>
+            {/* Persona Switcher */}
+            <div className="flex items-center bg-white/[0.03] border border-white/[0.06] rounded-md px-2.5 py-1 text-xs text-zinc-300">
+              <span className="text-zinc-500 text-[11px] mr-1.5">Role:</span>
               <select
-                className="bg-transparent text-gray-200 text-xs font-medium focus:outline-none cursor-pointer pr-1"
+                className="bg-transparent text-zinc-200 text-xs font-medium focus:outline-none cursor-pointer pr-1"
                 value={currentRole}
                 onChange={(e) => onPersonaChange(e.target.value)}
               >
-                <option value="ops_analyst" className="bg-[#0e1017] text-white">Ops Analyst</option>
-                <option value="risk_lead" className="bg-[#0e1017] text-white">Risk Lead (Approver)</option>
-                <option value="merchant_apex" className="bg-[#0e1017] text-white">Merchant Apex (Isolated)</option>
-                <option value="merchant_quickbite" className="bg-[#0e1017] text-white">Merchant QuickBite</option>
-                <option value="admin" className="bg-[#0e1017] text-white">FinOps Admin</option>
-                <option value="auditor" className="bg-[#0e1017] text-white">Auditor (Read-Only)</option>
+                <option value="ops_analyst" className="bg-[#0e1013] text-zinc-200">Ops Analyst</option>
+                <option value="risk_lead" className="bg-[#0e1013] text-zinc-200">Risk Lead (Approver)</option>
+                <option value="merchant_apex" className="bg-[#0e1013] text-zinc-200">Merchant Apex</option>
+                <option value="merchant_quickbite" className="bg-[#0e1013] text-zinc-200">Merchant QuickBite</option>
+                <option value="admin" className="bg-[#0e1013] text-zinc-200">FinOps Admin</option>
+                <option value="auditor" className="bg-[#0e1013] text-zinc-200">Auditor</option>
               </select>
             </div>
 
-            {/* Professional Primary Action Button (Restrained, High-Contrast) */}
+            {/* Subtle High-End Action Button (Monochrome Linear Style) */}
             <button
               onClick={() => onRunQuickDemo('auto')}
-              className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-semibold shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer"
+              className="px-3 py-1 rounded-md bg-white hover:bg-zinc-200 text-black text-xs font-medium transition-colors flex items-center space-x-1.5 cursor-pointer shadow-sm"
             >
-              <Zap className="w-3.5 h-3.5 fill-black" />
+              <Plus className="w-3.5 h-3.5" />
               <span>Execute Claim</span>
             </button>
           </div>
         </div>
 
-        {/* Sub-Header Horizontal Tab Navigation */}
-        <nav className="flex items-center space-x-1 overflow-x-auto py-2 border-t border-white/[0.04] no-scrollbar">
+        {/* Minimal Horizontal Tabs (Subtle Underline Style) */}
+        <nav className="flex items-center space-x-4 overflow-x-auto border-t border-white/[0.04] no-scrollbar">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
 
@@ -119,10 +111,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors flex items-center space-x-1.5 cursor-pointer ${
-                  isActive
-                    ? 'bg-white/[0.08] text-white border border-white/[0.12] shadow-sm font-semibold'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/[0.03] border border-transparent'
+                className={`py-2 text-xs font-medium whitespace-nowrap transition-colors flex items-center space-x-1.5 relative cursor-pointer ${
+                  isActive ? 'text-white' : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 <span>{tab.label}</span>
@@ -130,14 +120,18 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                   <span
                     className={`px-1.5 py-0.2 rounded text-[10px] font-mono tabular-nums ${
                       tab.highlight
-                        ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30'
+                        ? 'bg-amber-500/10 text-amber-400'
                         : isActive
-                        ? 'bg-emerald-500/15 text-emerald-400'
-                        : 'bg-white/[0.04] text-gray-500'
+                        ? 'bg-white/[0.08] text-zinc-300'
+                        : 'text-zinc-500'
                     }`}
                   >
                     {tab.count}
                   </span>
+                )}
+                {/* Clean Active Underline Indicator */}
+                {isActive && (
+                  <span className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-white" />
                 )}
               </button>
             );
